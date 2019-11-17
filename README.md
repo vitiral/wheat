@@ -1,4 +1,4 @@
-wak: an experimental self-hosting language that compiles directly to wasm
+# wak: an experimental self-hosting language that compiles directly to wasm
 
 wak, like many failed languages before it, aims to be the next generation of C.
 It's primary purposes are:
@@ -21,37 +21,25 @@ The initial version of w++ will support only the following features:
 - traits, a.k.a interfaces
 - implicit growable/srinkable memory stack
 
-wak's syntax will be based on wasm as much as possible.
+## Syntax
+wak's syntax is a strict superset of wasm. In particular, it maintains that
+everything is an S expression. However, it adds several useful extensions
+for writing code as a human.
 
-Example syntax
+Shortcuts: several types can be inferred or expressed more concisely.
+
 ```
-(global $g (mut i32) = 0)   ;; set a global variable
+(assert_return (i32.const 40)  40
 
-local $a i32                ;; declare a local variable
-push (1_i32 + 2_000_i32)    ;; add two integers and push to stack
-set_local $a                ;; set the local variable from the stack
-local $b i32 = 2            ;; set a different local variable to an expression
-local $c                    ;; delcare another local variable
-$c = 42                     ;; set the variable
-
-stack $s i32                ;; declare a variable on the memstack
-$s = 42
-
-;; declare function
-func $func_name 
-  ($a i32)  ;; param a
-  ($b i32)  ;; param b
-  (result i32) (
-  ;; function body
-)
-
-
-;; declare a sumtype
-sumtype $MaybeInt (
-  ;; can be empty
-  (0 = $EmptyInt)
-
-  ;; or an integer
-  (1 = $JustInt i32)
-)
 ```
+
+## Development
+To setup the development environment, make the [wasm-reference][wasm-reference]
+interpretter and put it somewhere on your path (named `wasm-reference`). Then
+run
+
+```
+make test
+```
+
+[wasm-reference]: https://github.com/WebAssembly/spec/tree/master/interpreter
