@@ -22,6 +22,7 @@
     local.get $s
   )
 
+  ;; TODO: I think I can remove local_memstack_ptr
   (func $unreserve_mstack (param $local_memstack_ptr i32) (param $stack_size i32)
     (global.set $memstack_ptr
       (i32.add
@@ -169,3 +170,4 @@
 
 (assert_return (invoke "sum-struct-local" (i32.const 1) (i32.const 1)) (i32.const 2))
 (assert_return (invoke "sum-struct-local" (i32.const 1) (i32.const 2)) (i32.const 3))
+(assert_return (invoke "sum-struct-local" (i32.const 40) (i32.const 2)) (i32.const 42))
