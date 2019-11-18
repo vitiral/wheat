@@ -1,4 +1,5 @@
-_output/
+**/_output/
+**/out/
 
 
 #Added by cargo

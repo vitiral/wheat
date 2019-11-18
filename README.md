@@ -113,10 +113,10 @@ occupy multiple (compiler checked) types
 ```
 ;; A user-defined type which can be multiple values
 (sumt Option
-  (variant Empty ())       ;; no payload/data
-  (variant I32   i32)      ;; an integer
-  (variant I64   i64)      ;; an integer
-  (variant List  (list (&mut i32) 10))  ;; a list of integers
+  (variant Empty ())       ;; variant=0, no payload/data
+  (variant I32   i32)      ;; variant=1, an integer
+  (variant I64   i64)      ;; variant=2, an integer
+  (variant List  (list (&mut i32) 10))  ;; variant=3, a list of integers
 )
 
 ;; sumt can only be a reference on the stack, like lists
@@ -130,11 +130,26 @@ occupy multiple (compiler checked) types
 ;; branching based on value.
 ;; returns the value of the integer if it is an integer,
 ;; -1 if empty, and -2 otherwise
-(sum_br &myoptions
-    (variant Empty      (-1))
-    (variant I32(&v)    (&v))
-    (variant_default    -2)
+(switch &myoptions (result i32)
+    (case I32   &v   (&$v))
+    (case Empty ()     (-1))
+    (case _     ()       (-2))
 )
+  ==
+  (block
+    (block
+      (block
+        (br_table 1 0 2 (i32.load $ref$myoptions))
+      )
+      ;; case I32 (&v) (&$v)
+      (i32.load offset=4 $ref$myoptions)  
+    )
+    ;; case Empty () (-1)
+    i32.const -1                            
+  )
+  ;; case _ (-2)
+  i32.const -2          
+
 ```
 
 
