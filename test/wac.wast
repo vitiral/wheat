@@ -3,30 +3,29 @@
   (memory 1) ;; 64KiB of memory
   (func $dummy)
   (global $STACK_SIZE   i32     (i32.const 65536))
-  (global $memstack_ptr (mut i32) (i32.const 65536))
+  (global $core$ref$mstack (mut i32) (i32.const 65536))
 
   (func $assert_no_stack
-    (if (i32.ne (global.get $memstack_ptr) (global.get $STACK_SIZE))
+    (if (i32.ne (global.get $core$ref$mstack) (global.get $STACK_SIZE))
         (then (unreachable))
     )
   )
 
-  (func $reserve_mstack (param $stack_size i32) (result i32)
+  (func $core$alloc_mstack (param $stack_size i32) (result i32)
     (local $s i32)
     (i32.sub
-      (global.get $memstack_ptr)
+      (global.get $core$ref$mstack)
       (local.get $stack_size)
     )
     local.tee $s
-    global.set $memstack_ptr
+    global.set $core$ref$mstack
     local.get $s
   )
 
-  ;; TODO: I think I can remove local_memstack_ptr
-  (func $unreserve_mstack (param $local_memstack_ptr i32) (param $stack_size i32)
-    (global.set $memstack_ptr
+  (func $core$free_mstack (param $stack_size i32)
+    (global.set $core$ref$mstack
       (i32.add
-        (local.get $local_memstack_ptr)
+        (global.get $core$ref$mstack)
         (local.get $stack_size)
       )
     )
@@ -54,6 +53,7 @@
 
   (func (export "switch-example") (param $v i32) (result i32)
     (local $res i32)
+    (local $res.foo i32)
 
     ;; switch $v (result i32)
     ;;  (case 0 () 100)
@@ -126,7 +126,7 @@
     (call $assert_no_stack)
 
     ;; reserve memstack space
-    (local.set $local_memstack_ptr (call $reserve_mstack (i32.const 8)))
+    (local.set $local_memstack_ptr (call $core$alloc_mstack (i32.const 8)))
 
     ;; call the function, storing the result in the memstack
     (call $sum_struct_create
@@ -144,7 +144,7 @@
     )
 
     ;; unreserve memstack space
-    (call $unreserve_mstack (local.get $local_memstack_ptr) (i32.const 8))
+    (call $core$free_mstack (i32.const 8))
     (call $assert_no_stack)
 
     (i32.add

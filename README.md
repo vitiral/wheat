@@ -16,8 +16,8 @@ The initial version of w++ will support only the following features:
 - references
 - function references (wasm table)
 - inline wasm operations
-- [`sumtype`](https://en.wikipedia.org/wiki/Tagged_union), a.k.a a tagged union
-- [`prodtype`](https://en.wikipedia.org/wiki/Product_type), a.k.a a struct
+- [`sumt`](https://en.wikipedia.org/wiki/Tagged_union), sum type a.k.a a tagged union
+- [`prodt`](https://en.wikipedia.org/wiki/Product_type), product type a.k.a a struct
 - traits, a.k.a interfaces
 - implicit growable/srinkable memory stack
 
@@ -39,51 +39,85 @@ for writing code as a human.
 $var            == (local.get $var)
 
 ;; variable references
-&var            == ($var$ref)
+&var            == No equiavlent
+(deref &var)    == (local.get $var$ref)
 
-;; prodtype (struct) references
-&var.a          == (i32.add $var$ref <a-offset>)
+;; prodt (struct) references
+&var.a          == No equivalent
+(deref &var.a)  == (i32.load $var$ref offset=<a-offset>)
+```
 
-;; dereferencing with `&$`
-&$var           == (i32.load $var$ref)
-&$var.a         == (i32.load $var$ref offset=<a-offset>)
-&$global        == (get_global $global)
+**Reference types** are extensions of the variable name syntax `$`.
+They refer to non-wasm values, or wasm values which are through
+some kind of indirection, such as lists or structs.
+
+> Note: Reference types are slightly more restrictive than variable names (they cannot
+> include `$ . : &`).
+
+> Note: All functions and globals have to be defined using `(func &myfunc ...)`
+> instead of `(func $myfunc ...)`, since all function names actually get the
+> package added to them.
+
+```
+;; dereferencing
+(deref &var)           == (i32.load $var$ref)
+(deref &var.a)         == (i32.load $var$ref offset=<a-offset>)
+
+;; function which takes a user-defined wac type and returns a different type
+(func &myfunc (param &v1 SomeType) (return &OtherType) ... )
+  ==
+  (func $mypkg$myfunc (param $v1$SomeType$ref i32) (return i32) ... )
 ```
 
 **Stack-based Types**: The following are types which can only be references
 and are implemented on the automatically managed memory stack (mstack)
 
 ```
+;; Core functions for managing stack
+  (func $core$alloc_mstack (param $stack_size i32) (result i32)
+    (local $s i32)
+    (i32.sub
+      (global.get $core$ref$mstack)
+      (local.get $stack_size)
+    )
+    local.tee $s
+    global.set $core$ref$mstack
+    local.get $s
+  )
+
+  (func $core$free_mstack (param $stack_size i32)
+    (global.set $core$ref$mstack
+      (i32.add
+        (global.get $core$ref$mstack)
+        (local.get $stack_size)
+      )
+    )
+  )
+
 ;; all complex types must be stored on the memory stack
 ;; example of an empty list with capacity 10
 (mstack &mylist (list (mut i32) 10))
   == 
-  ;; grow memstack down and store reference to mylist
-  (i32.sub &$WAK$ref$global_memstack <size of function stack>)
-  tee_local $WAK$ref$local_memstack
-  set_global $WAK$ref$global_memstack
-  set_local $ref$mylist (i32.add &$WAK$ref$local_memstack <mylist offset>)
-
-  ;; .. function body
-
-  ;; shrink memstack up
-  (set_global $WAK$ref$global_memstack
-      (i32.add
-        (get_local $WAK$ref$local_memstack
-        (i32.const <size of function stack>)
-      )
+  ;; reserve stack for function
+  (local.set $core$LOCAL$ref$memstack 
+    (call $core$alloc_mstack (i32.const <stack size>))
   )
+
+  ;; ... function body
+
+  ;; free stack
+  (call $core$LOCAL$ref$memstack (i32.const <stack size>))
 
 ;; list with capacity 10 and 2 elements
 (mstack &mylist (list (mut i32) 10) 
     (data 1 2))
   ==
-  ;; .. memstack manaagmeent (see above)
+  ;; .. memstack manaagmeent
 
-  (i32.store offset=0 &$mylist 10)  ;; capacity
-  (i32.store offset=4 &$mylist 2)   ;; size
-  (i32.store offset=8 &$mylist 1)   ;; index=0
-  (i32.store offset=12 &$mylist 2)  ;; index=1
+  (i32.store offset=0 $mylist$ref 10)  ;; capacity
+  (i32.store offset=4 $mylist$ref 2)   ;; size
+  (i32.store offset=8 $mylist$ref 1)   ;; index=0
+  (i32.store offset=12 $mylist$ref 2)  ;; index=1
 
 ;; byte list (strings) are declared the same way, in either
 ;; string format or as an list of bytes
@@ -95,16 +129,16 @@ and are implemented on the automatically managed memory stack (mstack)
   ==
   ;; .. memstack manaagmeent (see above)
 
-  (i32.store offset=0 &$mylist 10)    ;; capacity
-  (i32.store offset=4 &$mylist 8)     ;; size
-  (i32.store offset=8 &$mylist x61)   ;; 'a'
-  (i32.store offset=12 &$mylist x20)  ;; ' '
-  (i32.store offset=16 &$mylist 0x73) ;; 's'
-  (i32.store offset=20 &$mylist 0x74  ;; 't'
-  (i32.store offset=24 &$mylist 0x72) ;; 'r'
-  (i32.store offset=28 &$mylist 0x69) ;; 'i'
-  (i32.store offset=32 &$mylist 0x6e) ;; 'n'
-  (i32.store offset=36 &$mylist 0x67) ;; 'g'
+  (i32.store offset=0 $mylist$ref 10)    ;; capacity
+  (i32.store offset=4 $mylist$ref 8)     ;; size
+  (i32.store offset=8 $mylist$ref x61)   ;; 'a'
+  (i32.store offset=12 $mylist$ref x20)  ;; ' '
+  (i32.store offset=16 $mylist$ref 0x73) ;; 's'
+  (i32.store offset=20 $mylist$ref 0x74  ;; 't'
+  (i32.store offset=24 $mylist$ref 0x72) ;; 'r'
+  (i32.store offset=28 $mylist$ref 0x69) ;; 'i'
+  (i32.store offset=32 $mylist$ref 0x6e) ;; 'n'
+  (i32.store offset=36 $mylist$ref 0x67) ;; 'g'
 ```
 
 **sumt** creates sumtype (tagged union), allowing for a single variable to
@@ -130,25 +164,30 @@ occupy multiple (compiler checked) types
 ;; branching based on value.
 ;; returns the value of the integer if it is an integer,
 ;; -1 if empty, and -2 otherwise
-(switch &myoptions (result i32)
-    (case I32   &v   (&$v))
-    (case Empty ()     (-1))
-    (case _     ()       (-2))
+(sw_set $out &myoptions (result i32)
+    (case I32   &v   (deref &v))
+    (case Empty ()   (-1))
+    (case _     ()   (-2))
 )
   ==
   (block
     (block
       (block
-        (br_table 1 0 2 (i32.load $ref$myoptions))
+        (block
+          (br_table 1 0 2 (i32.load $ref$myoptions))
+        )
+        ;; case I32 (&v) (deref &v)
+        (local_set $out
+          (i32.load offset=4 $ref$myoptions))
+        br 2
       )
-      ;; case I32 (&v) (&$v)
-      (i32.load offset=4 $ref$myoptions)  
+      ;; case Empty () (-1)
+      (local_set $out (i32.const -1))
+      br 1
     )
-    ;; case Empty () (-1)
-    i32.const -1                            
+    ;; case _ (-2)
+    (local_set $out (i32.const -2))
   )
-  ;; case _ (-2)
-  i32.const -2          
 
 ```
 
@@ -159,7 +198,7 @@ The `Num` trait is implemented for all wasm types.
 ```
 (Num.add 1 2)
   ==
-  (call $Core$TRAIT$i32$Num$add 1 2)
+  (call $core$TRAIT$i32$Num$add 1 2)
   == 
   (i32.add 
     (i32.const 1)
@@ -167,7 +206,7 @@ The `Num` trait is implemented for all wasm types.
 
 (Num.add 1_i64 2_i64)
   == 
-  (call $Core$TRAIT$i64$Num$add 1_i64 2_i64)
+  (call $core$TRAIT$i64$Num$add 1_i64 2_i64)
   ==
   (i64.add 
     (i64.const 1) 
@@ -175,13 +214,30 @@ The `Num` trait is implemented for all wasm types.
 
 (Num.add 1.1 2.2)
   ==
-  (call $Core$TRAIT$f32$Num$add 1.1 2.2)
+  (call $core$TRAIT$f32$Num$add 1.1 2.2)
   ==
   (f32.add 
      (f32.const 1.1) 
      (f32.const 2.2))
 ```
 
+**package** allows you to declare your package name at the top of
+a file. Conceptually, all of your non-local names (globals, functions, etc) get
+renamed `$package$name`. It is recommended to make these names long, as they are
+not allowed to overlap, and users shorten them with `include` statements.
+
+**include** allows you to include other `.wac` (wac library) modules based on a
+path and define their namespace.
+
+```
+package "myorg.mypkg"
+
+include &oth "./other.wacl"
+
+  (func $myfunc (param $v i32)
+    (call &oth.Function $v)
+  )
+```
 
 ## Development
 To setup the development environment, make the [wasm-reference][wasm-reference]
