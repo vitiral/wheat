@@ -26,148 +26,105 @@ wak's syntax is a strict superset of wasm. In particular, it maintains that
 everything is an S expression. However, it adds several useful extensions
 for writing code as a human.
 
-**Simple Shortcuts**: several types can be inferred or expressed more concisely.
+**Simple Shortcuts**: several types can be expressed more concisely
 ```
-40              == (i32.const 40)
 40_i32          == (i32.const 40)
 40_i64          == (i64.const 40)
-1.3             == (f32.const 1.3)
 1.3_f32         == (f32.const 1.3)
 1.3_f64         == (f64.const 1.3)
 
-;; simpler variable getting
-$var            == (local.get $var)
-
-;; variable references
-&var            == No equiavlent
-(deref &var)    == (local.get $var$ref)
-
-;; prodt (struct) references
-&var.a          == No equivalent
-(deref &var.a)  == (i32.load $var$ref offset=<a-offset>)
+;; shortcuts for getting/setting
+(local myint i32)   == (local $myint i32)
+(set myint 2i32)    == (local.set $myint (i32.const 2))
+(get myint)         == (local.get $myint)
 ```
 
-**Reference types** are extensions of the variable name syntax `$`.
-They refer to non-wasm values, or wasm values which are through
-some kind of indirection, such as lists or structs.
-
-> Note: Reference types are slightly more restrictive than variable names (they cannot
-> include `$ . : &`).
-
-> Note: All functions and globals have to be defined using `(func &myfunc ...)`
-> instead of `(func $myfunc ...)`, since all function names actually get the
-> package added to them.
+**Array Types**: arrays can be of any types and are only references.
 
 ```
-;; dereferencing
-(deref &var)           == (i32.load $var$ref)
-(deref &var.a)         == (i32.load $var$ref offset=<a-offset>)
+;; A list of integers with a capacity
+(prodt Array
+  (field capacity i32)
+  ;; data <type>
+)
 
-;; function which takes a user-defined wac type and returns a different type
-(func &myfunc (param &v1 SomeType) (return &OtherType) ... )
+;; The above uses a "generic" <type>. However, there are no generics, so if
+;; you want a Array of your type you must use the macro to define the type
+;;
+;; Note that Array* types are _not constant sized_, meaning you cannot use
+;; `(const ;; Array.size())`. This is because a non-constant amount of data
+;; is held after the `capacity` slot.
+
+(macro Array.declare ArrayI32 i32)
+
+;; an array of integers with capacity=10
+(local myarray &ArrayI32)
+(macro ArrayI32.init myarray capacity=10 all=0)
   ==
-  (func $mypkg$myfunc (param $v1$SomeType$ref i32) (return i32) ... )
-```
-
-**Stack-based Types**: The following are types which can only be references
-and are implemented on the automatically managed memory stack (mstack)
-
-```
-;; Core functions for managing stack
-  (func $core$alloc_mstack (param $stack_size i32) (result i32)
-    (local $s i32)
-    (i32.sub
-      (global.get $core$ref$mstack)
-      (local.get $stack_size)
-    )
-    local.tee $s
-    global.set $core$ref$mstack
-    local.get $s
-  )
-
-  (func $core$free_mstack (param $stack_size i32)
-    (global.set $core$ref$mstack
-      (i32.add
-        (global.get $core$ref$mstack)
-        (local.get $stack_size)
+  ;; inform compiler we need this much stack. Returns a &i32 of where on the
+  ;; stack it is
+  (set myarray 
+    (reserve_stack 
+      (const Num.add
+        (const Sized.size i32) // slot for capacity
+        (const Num.mul 10 (const Sized.size i32) )
       )
     )
   )
-
-;; all complex types must be stored on the memory stack
-;; example of an empty list with capacity 10
-(mstack &mylist (list (mut i32) 10))
-  == 
-  ;; reserve stack for function
-  (local.set $core$LOCAL$ref$memstack 
-    (call $core$alloc_mstack (i32.const <stack size>))
+  (set myarray.capacity 10)
+  (loop 
+      ;; TODO: set up proper loop $i over all 10
+      (call ArrayI32.set myarray $i 0)
+  )
+  ==
+  (local.set $myarray$ref (i32.add (i32.get $WAC$mstack$local$ref) <stack offset>))
+  (i32.set (local.get $myarray$ref) offset=0 (i32.const 10))    ;; myarray.capacity
+  (loop
+    ;; TODO: set up proper loop over all 10
+    (i32.set (i32.add (local.get $myarray$ref) (local.get $i)) offset=4 0
   )
 
-  ;; ... function body
-
-  ;; free stack
-  (call $core$LOCAL$ref$memstack (i32.const <stack size>))
-
-;; list with capacity 10 and 2 elements
-(mstack &mylist (list (mut i32) 10) 
-    (data 1 2))
+(local mylist (&ArrayListI32))
+(macro ArrayListI32.of mylist capacity=10 5 10 15 20)
   ==
-  ;; .. memstack manaagmeent
-
-  (i32.store offset=0 $mylist$ref 10)  ;; capacity
-  (i32.store offset=4 $mylist$ref 2)   ;; size
-  (i32.store offset=8 $mylist$ref 1)   ;; index=0
-  (i32.store offset=12 $mylist$ref 2)  ;; index=1
-
-;; byte list (strings) are declared the same way, in either
-;; string format or as an list of bytes
-(mstack &mylist (list (&mut byte) 10) 
-    (data "a string")
-  == 
-(mstack &mylist (list (&mut byte) 10) 
-    (data 0x61 0x20 0x73 0x74 0x72 0x69 0x6e 0x67))
+  (macro array.new tmp i32 capacity=10 all=undeclared)
+  (macro ArrayList.new i32 length=4 data=tmp)
   ==
-  ;; .. memstack manaagmeent (see above)
-
-  (i32.store offset=0 $mylist$ref 10)    ;; capacity
-  (i32.store offset=4 $mylist$ref 8)     ;; size
-  (i32.store offset=8 $mylist$ref x61)   ;; 'a'
-  (i32.store offset=12 $mylist$ref x20)  ;; ' '
-  (i32.store offset=16 $mylist$ref 0x73) ;; 's'
-  (i32.store offset=20 $mylist$ref 0x74  ;; 't'
-  (i32.store offset=24 $mylist$ref 0x72) ;; 'r'
-  (i32.store offset=28 $mylist$ref 0x69) ;; 'i'
-  (i32.store offset=32 $mylist$ref 0x6e) ;; 'n'
-  (i32.store offset=36 $mylist$ref 0x67) ;; 'g'
+  ;; data gets populated by unrolling
+  (set tmp.0 5)
+  (set tmp.1 10)
+  (set tmp.2 15)
+  (set tmp.3 20)
 ```
 
-**sumt** creates sumtype (tagged union), allowing for a single variable to
-occupy multiple (compiler checked) types
+**User defined types**: The following are types which are only (currently)
+references and are implemented on the automatically managed memory stack
+(mstack)
 
 ```
-;; A user-defined type which can be multiple values
+;; sumt creates sumtype (tagged union), allowing for a single variable to
+;; occupy multiple (compiler checked) types
 (sumt Option
-  (variant Empty ())       ;; variant=0, no payload/data
-  (variant I32   i32)      ;; variant=1, an integer
-  (variant I64   i64)      ;; variant=2, an integer
-  (variant List  (list (&mut i32) 10))  ;; variant=3, a list of integers
+  (variant Empty ())                    ;; variant=0, no payload/data
+  (variant I32   i32)                   ;; variant=1, an integer
+  (variant I64   i64)                   ;; variant=2, an integer
+  (variant Array ArrayListI32)          ;; variant=3, a list of integers
 )
 
-;; sumt can only be a reference on the stack, like lists
-
-;; initilizing as an empty value
-(mstack &myoptions (&mut Option) (data Option.Empty))
-
-;; setting to a new type
-(set_stack &myoptions (data Option.List (data 4 5 6)))
+;; all types have the `new` macro automatically created. More macros (or
+;; functions) can also be implemented for them
+(macro Option.new Empty)
+(macro Option.new I32=1i32)
+(macro Option.new I64=1i64)
+(macro Option.new Array=l (macro ArrayListI32.of l capacity=10 1 2 3))
 
 ;; branching based on value.
 ;; returns the value of the integer if it is an integer,
 ;; -1 if empty, and -2 otherwise
 (sw_set $out &myoptions (result i32)
-    (case I32   &v   (deref &v))
-    (case Empty ()   (-1))
-    (case _     ()   (-2))
+    (case I32=v     (ref.get v))
+    (case Empty     (-1))
+    (case _         (-2))
 )
   ==
   (block
@@ -191,6 +148,33 @@ occupy multiple (compiler checked) types
 
 ```
 
+**Reference types** are extensions of the variable name syntax `$`.
+They refer to non-wasm values, or wasm values which are through
+some kind of indirection, such as lists or structs.
+
+> Note: Reference types are slightly more restrictive than variable names (they cannot
+> include `$ . : &`).
+
+```
+;; operating on references
+(local var &i32)      == (local $var$ref i32) ;; declare a reference
+(ref.get var)         == (i32.load $var$ref)
+(set var 1)           == (i32.set (i32.load $var$ref) (i32.const 1))
+
+;; prodt (struct) references
+var.a               == No equivalent, access a value for passing around
+(ref.get var.a)     == (i32.load $var$ref offset=<a-offset>)
+(set b var.a)       == No equivalent, set variable `b` to the value at `var.a`
+(ref.set b var.a)   == No equivalent, set reference of b to the reference of a
+
+;; function which takes a user-defined wac type and returns a different type
+(func myfunc (param v1 &SomeType) (return &OtherType) ... )
+  ==
+  (func $mypkg$myfunc (param $v1$SomeType$ref i32) (param $return$0$OtherType i32) ... )
+  ;; TODO: also defines a table+type for the function, accessible via `&myfunc`
+```
+
+```
 
 **Traits**: allow for automatic type inference for types which implement them.
 The `Num` trait is implemented for all wasm types.
@@ -221,6 +205,9 @@ The `Num` trait is implemented for all wasm types.
      (f32.const 2.2))
 ```
 
+Important notes about types and traits:
+* can define `func`, `const func` or `macro` interfaces
+
 **package** allows you to declare your package name at the top of
 a file. Conceptually, all of your non-local names (globals, functions, etc) get
 renamed `$package$name`. It is recommended to make these names long, as they are
@@ -232,11 +219,34 @@ path and define their namespace.
 ```
 package "myorg.mypkg"
 
-include &oth "./other.wacl"
+include oth "./other.wacl"
 
   (func $myfunc (param $v i32)
-    (call &oth.Function $v)
+    (call oth.Function $v)
   )
+```
+
+
+**const**: Functions can be declared as `(const func ...)` and then be called like
+`(const funcname param1 param2)`. When called this way they must take only
+constant parameters and internally use no globals or non-const functions. The
+compiler will spin up an isolated wasm module with clear memory and execute the
+entire S expression.  `alloc` and `dealloc_all` will be defined as a bump
+allocator for this call.
+
+If they return a refence value into a non-const function then it's data will be
+unrolled into the stack and the reference returned.
+
+**macro**: A constant function of the below type can be defined and called
+using `macro`.  It accepts a tree of nodes and outputs an array of tokens. When
+invoked this way, the output will rewrite the syntax tree (with sanitization).
+
+```
+(const mymacro 
+    (param nodes &NodeTree)
+    (result (&Token))
+  ;; ... macro body
+)
 ```
 
 ## Development
