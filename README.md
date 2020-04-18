@@ -2,18 +2,13 @@
 The basic design:
 - Compiles directly and plainly to wasm
 - Expression based language. Expressions can "return a value"
-- Macro and const-function first language: many constructs (i.e. generics) are
-  plainly expanded macros.
-- Supports structs, enums and interfaces -- that's it
-- Memorry is RAII, but no tracking of ownership
-- Multiple return-value allows returning onto stack w/out passing pointers
-- Extension of wat with sugar
-  - references `&T`
-  - `(param x; 1; 2)` is sugar for `(param x) (param 1) (param 2)`
-- Has struct, enum, interface and basic types (`bool; i8+; u8+; (;pointer;) ^T; String`)
-- no generics: C got on without them and so can we!
-- `;; line comment` or `[; block comment ;]`
-
+- Macro and const-function first language: many constructs (i.e. generics) don't exist
+  but are solved with macros and insertable types.
+- Supports basic integer+float types, structs, enums and interfaces -- that's it
+- Memorry is RAII with tracking of ownership. Stack/vs heap not controllable by
+  programmer.
+- Inspired mostly by rust and a [withoutboats blog
+  post](https://boats.gitlab.io/blog/post/notes-on-a-smaller-rust/)
 
 # Overview
 
@@ -22,22 +17,22 @@ index, so are essentially tuples. All data structures (structs/enums/function
 inputs/etc) are delcared as:
 
 ```
-{arg1: type1; arg2: String = "default value"}
+{arg1 [type1]; arg2 [String] = "default value"}
 ```
 
-An statement-expression executes some behavior and can optionally end in`;`. Multiple
-statements (a statement block) can be contained within `()`. Statements that
-don't end in `;` can return a value.
+A statement-expression executes some behavior and can optionally end in`;`.
+Multiple statements (a statement block) can be contained within `(...)`.
+Statements that don't end in `;` can return a value.
 
 For example:
 ```
-let own v = (
+let own v [i32] = (
   let a = 2;
   let b = 40;
   a + b
 );
-print(v);           // function call, prints "42"
-printf$("v={}", v); // macro call
+sys.print(v);           // function call, prints "42"
+sys.printf$("v={}", v); // macro call, prints "v=42"
 ```
 
 A type expression is always inside `[]`
@@ -47,7 +42,7 @@ let own id [Id] = 42;
 ```
 
 The following is the function `splitl` which takes a struct
-containg a string and delimiter as input and which returns an annonymous struct
+containg a string and delimiter as input and returns an annonymous struct
 containing the values to the left and right of the first delimiter on the left.
 Please ignore the `own` keyword, it will be discussed in ownership.
 
@@ -55,12 +50,14 @@ Please ignore the `own` keyword, it will be discussed in ownership.
 fn splitl{own s [String]; delimiter [char]}
   -> { own left [String]; own right [String]; }
 (
-  for$$({let c [char] = v; let i = index}; enumerate$(s)) (
+  for$$({let c = ch let i = index}; s.charsIndex{}) (
     if c == delimter (
-      return {left=s.slice$(0, i); right=s.slice$(i+1, s.len())};
+      let own right = s.removeTail(s.len() - i - 1);
+      s.pop(); // pop delimiter
+      return {left = s; right = right};
     )
   )
-  {left=s; right=""}
+  return {left = s; right = String.default()};
 )
 ```
 
@@ -77,8 +74,8 @@ fn split{own s [String]; delimiter [char]}
 split{"foo,bar"; ','}
 ```
 
-`byindex$` and `enumerate$` and `for$$` are macros. Macros with one `$` consume
-the next expression. Macros with two `$` (like `for$$`) consume the next two
+`byindex$` and `for$$` are macros. Macros with one `$` consume the next
+expression. Macros with two `$` (like `for$$`) consume the next two
 expressions.
 
 Macros can consume any expression meaning they can consume a container (a
@@ -101,11 +98,13 @@ In this case, the expressions get consumed bottom-up. So the `struct` expression
 gets sent to `Eq.impl$` which gets passed to `Debug.impl$`. In this case, the
 order doesn't matter, but that might not always be the case.
 
+
 # Core Types
 - u8, u16, u32, etc
 - i8, i16, i32, etc
 - f32, f64
 - Void
+
 
 # Ownership
 There are a few ways to declare a value:
@@ -120,10 +119,10 @@ The following control how the value can be used and when it is freed:
   creates a new value) or given to other functions as `own mut`. It can also be
   converted into a non-mutable value (`let v = own v` or implicitly `f{a=own
   v}`) but after that point it can no longer be used mutably.
-- `own var [type]` declares an _immutable value_, possibly shared via refcount
-  or gc. It will be desroyed at end of scope, which may simply decrement the
-  refcount. Cloning (`own+ v`) may simply increase the number of references
-  instead of making a new value.
+- `own var [type]` declares an _immutable value_, possibly shared via
+  refcount/GC or possibly const. It will be desroyed at end of scope, which may
+  simply decrement the refcount. Cloning (`v.clone()`) may simply increase the
+  number of references instead of making a new value.
 - `mut var [type]` declares an _exlusive mutable reference_. It can be given to
   other functions as a mutable or immutable reference. The lifetime (`lt$`)
   tracker will ensure that it is not used while other functions have access to
@@ -135,27 +134,33 @@ The following control how the value can be used and when it is freed:
   across threads. Types which are declared `sync` can only receive owned or
   sync values (not references). The language provides no way to convert sync
   values to any of the other ownership types, but instead must have methods
-  which convert them (i.e. `Mutex.lock$`).
+  which can convert them (i.e. `Mutex.lock$`).
 - `sync mut var [type]` is a mutable, owned value (probably using atomics or
   lockfree algorithms) that may be shared and mutated across threads. It
   can be converted to any of the other ownership types, as it is implied
   that all kinds of ownership and reference are safely allowed. However,
   only `sync mut` or `own mut` values may be inserted into it.
+- `const var [type]` declares a constant variable defined at compile time. It
+  cannot be mutated and can be converted into any immutable type except sync
+  (as there is no reason to do so, since sync is unusable without internal
+  tracking/mutability).
 
 
 ## Taint analysis and lifetimes
 
-Here is `splitl` with the lifetime marked out. References _must_ have lifetimes
-marked unless there are no lifetime dependencies.
+Here is `splitl` using references instead of owned values. In order to use
+references, the lifetimes must be marked correctly in this case because
+the compiler has no way to know the programer intended the output to be
+tied to the input.
 
 ```
-lt$$(s; res) ;; "s" must outlive all values in "res" (the result)
+lt$$(s [res]) // "s" must outlive all values in "res" (result)
 fn splitl{s [String]; delimiter [char]}
-  -> { left [String]; right [String]; }
+  -> {left [String]; right [String]}
 (
-  for$$({let c [char] = v; let i = index}; enumerate$(s)) (
+  for$$({let c = v; let i = index}; s.charsIndex{}) (
     if c == delimter (
-      return {left=s.slice$(0, i); right=s.slice$(i+1, s.len())};
+      return {left=s.slice(0, i); right=s.slice(i+1, s.len())};
     )
   )
   {left=s; right=""}
@@ -167,15 +172,31 @@ Note that `s` is an immutable reference. How might this work?
 ```
 let mut own in = stdin();
 let {left=line1; right=line2} = splitl{s=in; delimter='\n'};
-// cannot use `in` mutably since it has a reference in left/right
+// cannot use `in` mutably since it has a reference to left/right
 if left == "not good" {
   abort(1);
 }
 // left/right are no longer used, so we own `in` again and can use mutably.
 in.replace("very good", "super good");
 
-// At end of function compiler inserts `in.destroy()`
+// At end of function compiler inserts `in.destroy{}`
 ```
+
+To summarize:
+- The ownership specifications (i.e. `own`, `own mut`, etc) influence
+  where `v.destory{}` is inserted -- at the end of scope for the variable
+  in reverse order. No lifetime analysis is required for this.
+- The ownership specification also outright forbids certain bad things,
+  like putting a non-exclusive owned value into a sync or mutating an immutable
+  value.
+- Taint analysis goes through every function call local to a value and ensures:
+  - taints a reference if it is stored in a container type (lowest level is
+    typically a slice): their lifetimes must be explicitly bound and that
+    reference can no longer be used mutably (if it could in the first place).
+  - taints a reference if any field/index is referenced, it cannot be used
+    mutably. If the sub-reference was mutable, only other sub-references (i.e.
+    fields) can be used.
+
 
 # Generics, or rather the lack thereof
 The language does not provide generics. Instead types can be specified in
@@ -217,6 +238,7 @@ The `?` does error handling, which will be covered later.
 
 What functions or types have to be generated? The answer is _any_ function
 which does not take in a concrete struct, enum or virtual interface.
+
 
 ## Virtual and Generated Interfaces
 Any type can be converted to have a virtual interface to explicit interfaces.
