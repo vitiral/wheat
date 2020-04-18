@@ -1,25 +1,32 @@
-# wak: an experimental self-hosting language that compiles directly to wasm
+# wak: an experimental wasm extension language.
 
 wak, like many failed languages before it, aims to be the next generation of C.
 It's primary purposes are:
-
-- To compile directly to a wat (wasm text) representation which can be easily
+- To be a simple extenion of wat (wasm text format) which can be easily
   reasoned about by a human
 - To be compabible on all systems wasm is compatible on (i.e. not require an
   allocator, GC, etc)
-- To support bootstrapping other programming languages as easily as possible,
-  without harming the above two goals.
+- To enable writing compilers for itself and other programming languages as
+  easily as possible, without harming the above two goals.
 
-The initial version of w++ will support only the following features:
-- wasm basic types: `i32`, `i64`, `f32`, `f64`
-- functions
-- references
-- function references (wasm table)
-- inline wasm operations
-- [`sumt`](https://en.wikipedia.org/wiki/Tagged_union), sum type a.k.a a tagged union
-- [`prodt`](https://en.wikipedia.org/wiki/Product_type), product type a.k.a a struct
-- traits, a.k.a interfaces
+The basic design is:
+- extension of wat with sugar
+- Has struct, enum, interface and basic types (bool, i8+, u8+, [T], String)
+- const and macros are first-class citizens.
+  - You can have const and macro functions associated with types and interfaces
+- no generics: C got on without them and so can we!
+
+The initial version of wak will support only the following features:
+- A strict superset of wat
 - implicit growable/srinkable memory stack
+- user defined types
+  - [`sumt`](https://en.wikipedia.org/wiki/Tagged_union), sum type a.k.a a tagged union
+  - [`prodt`](https://en.wikipedia.org/wiki/Product_type), product type a.k.a a struct
+  - traits, a.k.a interfaces
+- references to wak types
+- user defined functions using wak types
+    - virtual functions and traits using wak types
+- const functions and macros, executing specified wasm at compile time.
 
 ## Syntax
 wak's syntax is a strict superset of wasm. In particular, it maintains that
@@ -28,38 +35,200 @@ for writing code as a human.
 
 **Simple Shortcuts**: several types can be expressed more concisely
 ```
-40_i32          == (i32.const 40)
-40_i64          == (i64.const 40)
-1.3_f32         == (f32.const 1.3)
-1.3_f64         == (f64.const 1.3)
+40      => (i32.const 40)
+40_i32  => (i32.const 40)
+40_i64  => (i64.const 40)
+1.3_f32 => (f32.const 1.3)
+1.3_f64 => (f64.const 1.3)
 
-;; shortcuts for getting/setting
-(local myint i32)   == (local $myint i32)
-(set myint 2i32)    == (local.set $myint (i32.const 2))
-(get myint)         == (local.get $myint)
+;; shortcuts for declaring/getting/setting
+(let myint: i32)     => (local $myint i32)
+(set myint = 2)      => (local.set $myint (i32.const 2))
+(set x = myint)      => (local.set $x (local.get $myint))
+(let x: i32 = myint) =>
+ (local $myint i32) (local.set $x (local.get $myint))
+
+;; `;` within an S-expression repeats the S expression for the first element
+(let v1: i32; v2: i32) == (let v1: i32) (let v2: i32)
+(func myfunc 
+  (param a: i32; b:i32) 
+  (return o: i32 = 5; u: i32)
+  ...
+) 
+  =>
+(func myfunc 
+  (param a: i32) (param b: i32) 
+  (return o: i32 = 5) (return o: i32)
+  ...
+)
+```
+**First class func, enum, struct, interface and macro**
+
+Most program structure is accomplished via the above concepts, which should
+be familiar to many programers. Wak does not support generics.
+
+**func** functions:
+
+Functions are one of the core types in wak. There are two variations: `const`
+and `func`.
+
+`func` works very similar to wat except it can accept wak types. For example:
+
+```
+(func myFunc (param in: *InputType) (result out &ResultType)
+  (macro ResultType.new out) ;; reserve the output
+  ;; function body. "out" is implicitly returned.
+)
 ```
 
-**Array Types**: arrays can be of any types and are only references.
+`const function` is simply a funciton which when called gets evaluated at
+compilation time. It must have no dependencies besides other const functions
+and must not form any dependency loops. Essentially, all const functions get
+exported to a wasm module and called with whatever inputs the program provides.
 
 ```
-;; A list of integers with a capacity
-(prodt Array
-  (field capacity i32)
-  ;; data <type>
+;; defining a const function
+(const func addTwoNumbers (param a i32) (param b i32) (result i32)
+  (set result (+ a b))
 )
 
-;; The above uses a "generic" <type>. However, there are no generics, so if
-;; you want a Array of your type you must use the macro to define the type
-;;
-;; Note that Array* types are _not constant sized_, meaning you cannot use
-;; `(const ;; Array.size())`. This is because a non-constant amount of data
-;; is held after the `capacity` slot.
+;; calling a const function
+(const three (call addTwoNumbers 1 2))
+```
 
-(macro Array.declare ArrayI32 i32)
+**Macros**: macros are absolutely fundamental in Wak and are used extensively.
+Writing them essentially requires writing a syntax tree handler and emitter.
+
+Creating a macro involves creating a `const` function of the below type. Macros
+are invoked via the `macro` call. A macro accepts the macro parameters and a
+tree of nodes. It outputs an array of tokens.
+
+When invoked this way, the output will rewrite the syntax tree. The rewrite
+will be sanitized such that only the given params will be allowed to exist
+verbatum, allowing "injection" of their characters.
+
+TODO: flush this out more and provide an example.
+
+```
+(constfunc mymacro 
+    (param tokens: *Slice.Token) 
+    (ret tree: *Tree)
+    ;; ... definition of the macro
+)
+```
+
+**Slice Types**: slices are a view of continuous data of some type.
+
+```
+;; A list of <type> with a capacity
+(struct Slice.<type>
+  (field
+      capacity: i32;
+      data: <type>;
+  )
+  ;; ... methods
+)
+```
+
+The above uses a "generic" <type>. However, there are no generics, so if
+you want a Slice of your type you must use the macro to define the type.
+Macros have the ability to declare a type _within their source module_.
+When they do this, they define the type only once no matter how often
+the macro is called.
+
+```
+pkg core.types;
+import core.lang.SliceIden;
+import core.lang.SliceToken;
+import core.lang.Tree;
+
+;; Macrogen macro, for 
+;; syntax: (!!macrogen <name> (iden <iden1> <iden2> ...) <source>)
+;;
+;; Creates 
+(constfunc macrogen 
+  (param 
+    idens: *SliceIden;
+    tokens: *SliceToken;
+  ) 
+  (ret tree: Tree)
+  ;; ... definition of macro
+)
+
+
+(pkg (!!pkg).Slice
+  ;; Creates the (!!define ..) macro for Slice.
+  ;; is a macro which itself creates a macro which will
+  ;; be associated with this package, in this case Slice.define.
+  ;;
+  ;; This can then be called with (!!Slice.define MyType)
+  ;; to generate the Slice.MyType type
+  (!!macrogen define
+    ;; The identifiers to subsitute. These are the only items
+    ;; that are not sanitized.
+    (iden $Name)
+    (iden $Item)
+
+    ;; what will be generated. Only items given to
+    ;; `iden` can be injected. All other identifiers
+    ;; will be sanitized.
+    (struct core.types.Slice.(!!fullType $Name)
+      (field 
+        size: USize;
+        items: *[$Item; ?]; // ptr to unknown size array
+      )
+    )
+
+    (impl (!!pkg).$Name
+      (func get
+        (param self: (!!pkg).$Name; index: USize)
+        (ret r: *$Item)
+
+        (let i: USize = USize.v0)
+        (!!switch (!!math index < self.size)
+          (true => r = items[index])
+          (false => (!!abort "index out of bounds"))
+        )
+      )
+
+      (func slice
+        (param self: (!!pkg).$Name; start: USize; end: USize)
+        (ret r: *[$Item])
+        (!!switch (!!math start > self.size || end > self.size)
+          (true => r = 
+            (new 
+              (!!pkg).$Name
+              size = (!!math end - start);
+              items = self.items[start:end];
+            )
+          )
+          (false => (!!abort "index out of bounds"))
+        )
+      )
+    ) ;; end impl
+  ) ;; end macro call
+) ;; end pkg
+
+  
+
+// Declares Slice.I32 concrete type
+(!!Slice.variant I32)
+
+(let x: Slice.I32
+```
+
+
+
+Note that Slice types are _not constant sized_, meaning you cannot use
+`(const ;; Slice.size())`. This is because a non-constant amount of data
+is held after the `capacity` slot.
+
+```
+(! Slice.declare SliceI32 i32)
 
 ;; an array of integers with capacity=10
-(local myarray &ArrayI32)
-(macro ArrayI32.init myarray capacity=10 all=0)
+(local myarray &SliceI32)
+(macro SliceI32.init myarray capacity=10 all=0)
   ==
   ;; inform compiler we need this much stack. Returns a &i32 of where on the
   ;; stack it is
@@ -74,7 +243,7 @@ for writing code as a human.
   (set myarray.capacity 10)
   (loop 
       ;; TODO: set up proper loop $i over all 10
-      (call ArrayI32.set myarray $i 0)
+      (call SliceI32.set myarray $i 0)
   )
   ==
   (local.set $myarray$ref (i32.add (i32.get $WAC$mstack$local$ref) <stack offset>))
@@ -84,11 +253,11 @@ for writing code as a human.
     (i32.set (i32.add (local.get $myarray$ref) (local.get $i)) offset=4 0
   )
 
-(local mylist (&ArrayListI32))
-(macro ArrayListI32.of mylist capacity=10 5 10 15 20)
+(local mylist (&SliceListI32))
+(macro SliceListI32.of mylist capacity=10 5 10 15 20)
   ==
   (macro array.new tmp i32 capacity=10 all=undeclared)
-  (macro ArrayList.new i32 length=4 data=tmp)
+  (macro SliceList.new i32 length=4 data=tmp)
   ==
   ;; data gets populated by unrolling
   (set tmp.0 5)
@@ -167,13 +336,16 @@ var.a               == No equivalent, access a value for passing around
 (set b var.a)       == No equivalent, set variable `b` to the value at `var.a`
 (ref.set b var.a)   == No equivalent, set reference of b to the reference of a
 
-;; function which takes a user-defined wac type and returns a different type
-(func myfunc (param v1 &SomeType) (return &OtherType) ... )
+;; function which takes a user-defined wak type and returns a different type
+(func myfunc (param v1 &SomeType) (result r1 &OtherType) ... )
   ==
-  (func $mypkg$myfunc (param $v1$SomeType$ref i32) (param $return$0$OtherType i32) ... )
+  (func $mypkg$myfunc (param $v1$SomeType$ref i32) (param $return$r1 i32) ... )
   ;; TODO: also defines a table+type for the function, accessible via `&myfunc`
-```
 
+;; Functions can then be called like below. The result will be stored into r1.
+(local v1 &SomeType)
+(local r1 &OtherType)
+(call myfunc v1 (result r1))
 ```
 
 **Traits**: allow for automatic type inference for types which implement them.
@@ -203,23 +375,67 @@ The `Num` trait is implemented for all wasm types.
   (f32.add 
      (f32.const 1.1) 
      (f32.const 2.2))
+
+(trait MyTrait
+  (func foo (param I32) (param I32) (result I32))
+)
+
+(impl MyType MyTrait
+  (func foo (param a &I32) (param b &I32) (result &I32)
+    (Num.add a b)
+  )
+)
 ```
 
 Important notes about types and traits:
 * can define `func`, `const func` or `macro` interfaces
+
+**Virtual** (`&virt`) traits are operated on through a vtable. Basically they
+are the following type
+
+```
+(prodt TraitVirt
+  (field vtable &table)
+  (field data &T)
+)
+
+(prod VTable
+  (field $resolve_trait (&func (param $type_index i32) (result i32))
+  (field $functions table_index)
+)
+  
+
+;; VTable is laid out like this:
+;; 0: <resolve_trait function index>
+;;      Is a perfect-hash table which takes the type_index and returns
+;;      the index where that type begins in this type's table_index
+;;      (i.e. Num => 0, MyTrait => 10)
+;; 0: <table_index>
+;;      0: Num.add
+;;      1: Num.sub
+;;      2: Num.mul
+;;      ...
+;;      10: MyTrait.foo
+```
+
+When someone wants to call a function it implements, they
+- call `resolve_trait` to get the type_index
+- call the function defined within the table using `type_index + method_index`
+  - pass `$data$ref` as the first argument (if the type takes &self)
+  - pass remaining arguments
 
 **package** allows you to declare your package name at the top of
 a file. Conceptually, all of your non-local names (globals, functions, etc) get
 renamed `$package$name`. It is recommended to make these names long, as they are
 not allowed to overlap, and users shorten them with `include` statements.
 
-**include** allows you to include other `.wac` (wac library) modules based on a
+**include** allows you to include other `.wak` (wak library) modules based on a
 path and define their namespace.
 
 ```
 package "myorg.mypkg"
 
-include oth "./other.wacl"
+include oth "./other.wak"
 
   (func $myfunc (param $v i32)
     (call oth.Function $v)
@@ -237,17 +453,17 @@ allocator for this call.
 If they return a refence value into a non-const function then it's data will be
 unrolled into the stack and the reference returned.
 
-**macro**: A constant function of the below type can be defined and called
-using `macro`.  It accepts a tree of nodes and outputs an array of tokens. When
-invoked this way, the output will rewrite the syntax tree (with sanitization).
+**More about types**
 
 ```
-(const mymacro 
-    (param nodes &NodeTree)
-    (result (&Token))
-  ;; ... macro body
-)
+;; Can require a param to implement multiple traits
+;; `&` only required at beginning
+(func (param a (&Num Ordered MyTrait)) (result &SomeType))
+
+;; Can also take _or return_ virtual traits
+(func (param a (&virt Num)) (result &virt Num))
 ```
+
 
 ## Development
 To setup the development environment, make the [wasm-reference][wasm-reference]
