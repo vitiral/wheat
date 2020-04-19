@@ -14,7 +14,7 @@ The basic design:
 
 All functions take a struct as input, and all structs are addressable by
 index, so are essentially tuples. All data structures (structs/enums/function
-inputs/etc) are delcared as:
+inputs/etc) are declared like:
 
 ```
 {arg1 [type1]; arg2 [String] = "default value"}
@@ -31,8 +31,8 @@ let own v [i32] = (
   let b = 40;
   a + b
 );
-sys.print(v);           // function call, prints "42"
-sys.printf$("v={}", v); // macro call, prints "v=42"
+si.print(v);           // function call on system interface, prints "42"
+si.printf$("v={}", v); // macro call, prints "v=42"
 ```
 
 A type expression is always inside `[]`
@@ -82,9 +82,9 @@ Macros can consume any expression meaning they can consume a container (a
 struct value, etc), a statement or block of statements `(...)`, a function, a
 struct definition, a type statement (`[u32]`), etc.
 
-Macros can be chained by simply them next to eachother without passing them an
-expression. For instance, to implement the Debug and Eq interfaces for a struct
-you might do:
+Macros can be chained by simply putting them next to eachother without passing
+them an expression. For instance, to implement the Debug and Eq interfaces for
+a struct you might do:
 
 ```
 Debug.impl$ Eq.impl$
@@ -114,7 +114,7 @@ There are a few ways to declare a value:
 
 The following control how the value can be used and when it is freed:
 
-- `own mut var [type]` declares an _owned exclusive mutable value_. It can be
+- `own mut var [type]` declares an _owned exclusive value_. It can be
   mutated and will be destroyed at end of scope. It can be cloned (`own+ v`,
   creates a new value) or given to other functions as `own mut`. It can also be
   converted into a non-mutable value (`let v = own v` or implicitly `f{a=own
@@ -123,10 +123,9 @@ The following control how the value can be used and when it is freed:
   refcount/GC or possibly const. It will be desroyed at end of scope, which may
   simply decrement the refcount. Cloning (`v.clone()`) may simply increase the
   number of references instead of making a new value.
-- `mut var [type]` declares an _exlusive mutable reference_. It can be given to
-  other functions as a mutable or immutable reference. The lifetime (`lt$`)
-  tracker will ensure that it is not used while other functions have access to
-  it.
+- `mut var [type]` declares an _exlusive reference_. It can be given to other
+  functions as a mutable or immutable reference. The lifetime (`lt$`) tracker
+  will ensure that it is not used while other functions have access to it.
 - `var [type]` declares an _immutable reference_. It can be given to other
   functions or stored inside collections. It is guaranteed safe by the `lt$`
   tracker.
@@ -144,6 +143,10 @@ The following control how the value can be used and when it is freed:
   cannot be mutated and can be converted into any immutable type except sync
   (as there is no reason to do so, since sync is unusable without internal
   tracking/mutability).
+
+A struct can declare that it must never be mutable by simply not having any
+`mut` types (note that `sync mut` doesn't count). Internal mutabilty (i.e. to
+implement a refcount) can still be achieved by using unsafe contexts.
 
 
 ## Taint analysis and lifetimes
@@ -168,7 +171,6 @@ fn splitl{s [String]; delimiter [char]}
 ```
 
 Note that `s` is an immutable reference. How might this work?
-
 ```
 let mut own in = stdin();
 let {left=line1; right=line2} = splitl{s=in; delimter='\n'};
@@ -192,10 +194,21 @@ To summarize:
 - Taint analysis goes through every function call local to a value and ensures:
   - taints a reference if it is stored in a container type (lowest level is
     typically a slice): their lifetimes must be explicitly bound and that
-    reference can no longer be used mutably (if it could in the first place).
+    reference can no longer be used mutably (via `lt`).
   - taints a reference if any field/index is referenced, it cannot be used
     mutably. If the sub-reference was mutable, only other sub-references (i.e.
     fields) can be used.
+
+The `lt$$` macro is really just calling a compiler intrinsic macro which
+assigns _attributes_ to types. This is information known at compile time
+which can be used by internal and external tooling to help check programs.
+Values assigned must implement the `toJson` interface.
+
+```
+attr$$(taint=Vec.of${
+   {symbol=tar.inp.s, taint=Taint.Outlive.from(tar.res.all$())};
+})
+```
 
 
 # Generics, or rather the lack thereof
@@ -288,3 +301,11 @@ assertEq$[A=u32]{expected=32, result=42}?;
 assertEq$[_]{expected=32, result=42}?;
 ```
 
+
+# Reserved keywords:
+- types: struct, enum, type
+- ownership: let, const, mut, own
+- functions: fn, inp, res
+- structs: Self
+- impl: self
+- macros: lt$$, gen$$, tar (target)
