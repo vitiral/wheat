@@ -109,8 +109,6 @@ expr_statement = {
 
 expr_data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }
 
-declare_var_data = { var ~ expr_type ~ ("=" ~ expr)? }
-
 expr_type = {
   "[" ~ (identifier ~ expr_type? ~ ";")* ~ identifier ~ expr_type? ~ ";"?  ~ "]"
 }
