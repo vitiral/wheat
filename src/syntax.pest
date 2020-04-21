@@ -9,8 +9,8 @@ file = _{
 
 expr = _{
   value
-  | call_fn
   | closed
+  | call_fn
   | declare
   | fullname
 }
@@ -18,8 +18,9 @@ expr = _{
 ////////////////
 // Keywords
 LET = { "let" }
-OWNERSHIP = { "own" | "mut" | "sync" | "const" }
 VISIBILITY = { "pub" }
+OWNERSHIP = { "own" | "mut" | "sync" | "const" }
+END = { ";" }
 
 ///////////////////
 // Identifiers
@@ -88,7 +89,7 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 // Declaration
 
 declare = _{ declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
-declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ data ~ ("->" ~ data)? ~ statement }
+declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ declare_data ~ ("->" ~ declare_data)? ~ block }
 declare_var = { 
   LET ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ type_ ~ ("=" ~ expr)?
 }
@@ -100,10 +101,10 @@ declare_data_var = { var ~ type_ ~ ("=" ~ expr)? }
 ////////////////
 // Closed Expressions
 
-closed = _{ statement | data | type_ }
+closed = _{ block | data | type_ }
 
-statement = { 
-   "(" ~ (expr ~ ";")* ~ (expr ~ ";"?)? ~ ")"
+block = { 
+   "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
 }
 
 data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }

@@ -7,11 +7,13 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
+mod ast;
 mod parser;
 
 use std::fs;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use std::sync::Arc;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "lang", about = "An experimental programming language.")]
@@ -29,16 +31,17 @@ fn main() -> Result<(), String> {
     env_logger::init();
     let opt = Opt::from_args();
     info!("{:?}", opt);
-    let text = fs::read_to_string(&opt.input)
-        .map_err(|e| format!("Failed to parse {}: {}", opt.input.display(), e))?;
-    let res = match parser::parse(&text) {
+    let input = Arc::new(opt.input);
+    let text = fs::read_to_string(input.as_ref())
+        .map_err(|e| format!("Failed to parse {}: {}", input.display(), e))?;
+    let res = match parser::parse(input.clone(), &text) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Failed to parse {}\n{:#?}", opt.input.display(), e);
+            eprintln!("Failed to parse {}\n{:#?}", input.display(), e);
             return Err(e.to_string());
         }
     };
 
-    println!("Parsed {}:\n{:#?}", opt.input.display(), res);
+    println!("Parsed {}:\n{:#?}", input.display(), res);
     Ok(())
 }
