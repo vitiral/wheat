@@ -3,6 +3,10 @@ extern crate log;
 extern crate env_logger;
 extern crate wast;
 
+extern crate pest;
+#[macro_use]
+extern crate pest_derive;
+
 use std::path::PathBuf;
 use structopt::StructOpt;
 

@@ -100,8 +100,10 @@ order doesn't matter, but that might not always be the case.
 
 
 # Core Types
+- bool
 - u8, u16, u32, etc
 - i8, i16, i32, etc
+- usize, isize, ptr
 - f32, f64
 - Void
 
@@ -309,3 +311,51 @@ assertEq$[_]{expected=32, result=42}?;
 - structs: Self
 - impl: self
 - macros: lt$$, gen$$, tar (target)
+
+# Inline wasm
+The `wasm$` macro enables inline wasm. It can use any variables that are
+accessible to the program at that point by using their cannonical names
+and is not allowed to use addresses that are not accessible local/global
+variables.
+
+The compiler itself also extensively uses `wasm_priv$` which can execute
+ANY arbitrary wasm, but is not available to other programs.
+
+The canonical names are generated the following way. Note that the names will
+be obfuscated to comply with wat naming standards.
+
+For values related to structs and implementations of structs the
+```
+$<scope>$$struct(offset|method_name)$$<package>$$<type>($$<method>)?
+```
+
+- scope: `local` or `global`
+- wtype: the wasm "type", or what the variable actually is. wtypes include:
+  - `struct`: the variable contains information related to a struct. Includes:
+    - `struct_offset`: an offset. `struct {a [u8]; b[u8]}` will give
+      `a` an offset of 0, `b` an offset of 8.
+    - `struct_method_name`: the name of a method for a struct to be called.
+
+The wtype for values that are stored in memory is:
+
+```
+$(global|local)_(ptr|value)$$<package>$$<name>
+```
+
+  - `global_ptr`: a pointer to the start of a global data block.
+  - `local_ptr`: a local value pointing into memory, i.e. a value on the stack.
+
+There is also the following:
+
+- `$stack_ptr`: the pointer to the memory stack. Eventually this will be
+  thread-local (??)
+
+
+## Name to wasm mapping
+https://webassembly.github.io/spec/core/text/values.html#text-id
+
+The text-id spec above is very permissive. It allows most ascii characters
+(including `!$%*+./:<>=@` etc). It does NOT allow `()[]`.
+
+Type names must use the characters `\w_.[]` Note that `<>` are not permitted.
+Therefore, when converting type names `[]` will be converted to `<>`
