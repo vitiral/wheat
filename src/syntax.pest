@@ -3,14 +3,14 @@ COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 
 file = _{
   SOI
-  ~ (declare ~ ";")*
+  ~ (declare ~ ";"?)*
   ~ EOI
 }
 
-expr = {
+expr = _{
   value
   | call_fn
-  | expr_closed
+  | closed
   | declare
   | fullname
 }
@@ -23,12 +23,12 @@ VISIBILITY = { "pub" }
 
 ///////////////////
 // Identifiers
-identifier = {  /* call_macro1 |*/ fullname }
-fullname = ${(!(ASCII_DIGIT | ".") ~ fullname_char) ~ fullname_char*}
-var = ${ (!ASCII_DIGIT ~ var_literal_char) ~ var_literal_char* }
+identifier = _{  /* call_macro1 |*/ fullname }
+fullname = @{ (!(ASCII_DIGIT | ".") ~ fullname_char) ~ fullname_char* }
+var = @{ (!ASCII_DIGIT ~ var_char) ~ var_char* }
 
-var_literal_char = @{ "_" | ASCII_ALPHANUMERIC }
-fullname_char = @{"." | var_literal_char }
+var_char = @{ "_" | ASCII_ALPHANUMERIC }
+fullname_char = @{"." | var_char }
 
 ////////////////
 // Value Literals
@@ -55,13 +55,13 @@ char = {
   "'" ~ string_char ~ "'"
 }
 
-raw_string = {
+raw_string = ${
   "''" ~ PUSH("'"*)  // push the number of `'` onto the stack
   ~ raw_string_inner
   ~ "''" ~ POP
 }
 
-raw_string_inner = {
+raw_string_inner = @{
   (
     // Consume any character unless the next
     // characters are the correct number of single-quotes
@@ -75,8 +75,7 @@ string = ${
 }
 
 string_inner = @{ string_char* }
-
-string_char = {
+string_char = @{
   !("\"" | "\\") ~ ANY
   | "\\" ~ ("\\" | "\"" | "b" | "f" | "n" | "r" | "t")
   | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
@@ -88,32 +87,32 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 ////////////////
 // Declaration
 
-declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
-declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ expr_data ~ ("->" ~ expr_data)? ~ expr_statement }
+declare = _{ declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
+declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ data ~ ("->" ~ data)? ~ statement }
 declare_var = { 
-  LET ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ expr_type ~ ("=" ~ expr)?
+  LET ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ type_ ~ ("=" ~ expr)?
 }
 declare_data = { "{" ~ (declare_data_var  ~ ";")* ~ (declare_data_var ~ ";"?)? ~ "}" }
 
-declare_data_var = { var ~ expr_type ~ ("=" ~ expr)? }
+declare_data_var = { var ~ type_ ~ ("=" ~ expr)? }
 
 
 ////////////////
 // Closed Expressions
 
-expr_closed = _{ expr_statement | expr_data | expr_type }
+closed = _{ statement | data | type_ }
 
-expr_statement = { 
+statement = { 
    "(" ~ (expr ~ ";")* ~ (expr ~ ";"?)? ~ ")"
 }
 
-expr_data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }
+data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }
 
-expr_type = {
-  "[" ~ (identifier ~ expr_type? ~ ";")* ~ identifier ~ expr_type? ~ ";"?  ~ "]"
+type_ = {
+  "[" ~ (identifier ~ type_? ~ ";")* ~ identifier ~ type_? ~ ";"?  ~ "]"
 }
 
 ////////////////
 // Special Expressions
-call_fn = { fullname ~ expr_data }
-assign_var = { var ~ expr_type? ~ "=" ~ expr }
+call_fn = { fullname ~ data }
+assign_var = { var ~ type_? ~ "=" ~ expr }

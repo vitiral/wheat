@@ -5,5 +5,4 @@ fn main{} (
     fd = 1; // stdout
     str = HELLO;
   };
-);
-
+)

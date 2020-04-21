@@ -39,6 +39,6 @@ fn main() -> Result<(), String> {
         }
     };
 
-    println!("Parsed {}", opt.input.display());
+    println!("Parsed {}:\n{:#?}", opt.input.display(), res);
     Ok(())
 }
