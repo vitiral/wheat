@@ -38,5 +38,7 @@ fn main() -> Result<(), String> {
             return Err(e.to_string());
         }
     };
+
+    println!("Parsed {}", opt.input.display());
     Ok(())
 }

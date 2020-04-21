@@ -97,10 +97,13 @@
 //   );
 //   return {nwritten=nwritten};
 // )
+// 
+
+let const HELLO [StrSlice] = "Hello world!";
 
 fn main{} (
-  let nwritten [i32] = fdWriteString {
-    fd = 1; // fd 1 for stdout
-    s=HELLO;
+  fdWriteString {
+    fd = 1; // stdout
+    str = HELLO;
   };
-)
+);

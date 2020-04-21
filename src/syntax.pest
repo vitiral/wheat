@@ -3,8 +3,119 @@ COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 
 file = _{
   SOI
-  ~ declare*
+  ~ (declare ~ ";")*
   ~ EOI
 }
 
-declare = { }
+expr = {
+  value
+  | call_fn
+  | expr_closed
+  | declare
+  | fullname
+}
+
+////////////////
+// Keywords
+LET = { "let" }
+OWNERSHIP = { "own" | "mut" | "sync" | "const" }
+VISIBILITY = { "pub" }
+
+///////////////////
+// Identifiers
+identifier = {  /* call_macro1 |*/ fullname }
+fullname = ${(!(ASCII_DIGIT | ".") ~ fullname_char) ~ fullname_char*}
+var = ${ (!ASCII_DIGIT ~ var_literal_char) ~ var_literal_char* }
+
+var_literal_char = @{ "_" | ASCII_ALPHANUMERIC }
+fullname_char = @{"." | var_literal_char }
+
+////////////////
+// Value Literals
+value = { bool | float | integer | char | string | raw_string }
+
+bool = { "true" | "false" }
+
+float = @{
+  ("+"|"-")?
+  ~ ASCII_DIGIT ~ DIGIT*
+  ~ "." ~  DIGIT*
+  ~ (^"e" ~ ("-"|"+")? ~ DIGIT+)?
+}
+
+integer = @{
+  ("+" | "-")?
+  ~ (
+    "0x" ~ DIGIT_HEX+
+    | ASCII_DIGIT ~ DIGIT*
+  )
+}
+
+char = {
+  "'" ~ string_char ~ "'"
+}
+
+raw_string = {
+  "''" ~ PUSH("'"*)  // push the number of `'` onto the stack
+  ~ raw_string_inner
+  ~ "''" ~ POP
+}
+
+raw_string_inner = {
+  (
+    // Consume any character unless the next
+    // characters are the correct number of single-quotes
+    !("''" ~ PEEK)
+    ~ ANY
+  )
+}
+
+string = ${
+  "\"" ~ string_inner ~ "\""
+}
+
+string_inner = @{ string_char* }
+
+string_char = {
+  !("\"" | "\\") ~ ANY
+  | "\\" ~ ("\\" | "\"" | "b" | "f" | "n" | "r" | "t")
+  | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+DIGIT = @{ASCII_DIGIT | "_"}
+DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
+
+////////////////
+// Declaration
+
+declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
+declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ expr_data ~ ("->" ~ expr_data)? ~ expr_statement }
+declare_var = { 
+  LET ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ expr_type ~ ("=" ~ expr)?
+}
+declare_data = { "{" ~ (declare_data_var  ~ ";")* ~ (declare_data_var ~ ";"?)? ~ "}" }
+
+declare_data_var = { var ~ expr_type ~ ("=" ~ expr)? }
+
+
+////////////////
+// Closed Expressions
+
+expr_closed = _{ expr_statement | expr_data | expr_type }
+
+expr_statement = { 
+   "(" ~ (expr ~ ";")* ~ (expr ~ ";"?)? ~ ")"
+}
+
+expr_data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }
+
+declare_var_data = { var ~ expr_type ~ ("=" ~ expr)? }
+
+expr_type = {
+  "[" ~ (identifier ~ expr_type? ~ ";")* ~ identifier ~ expr_type? ~ ";"?  ~ "]"
+}
+
+////////////////
+// Special Expressions
+call_fn = { fullname ~ expr_data }
+assign_var = { var ~ expr_type? ~ "=" ~ expr }
