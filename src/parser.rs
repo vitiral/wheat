@@ -42,6 +42,11 @@ pub fn build_ast<'a>(
     println!("Parsed {}:\n{:#?}", path.display(), pairs);
 
     for pair in pairs {
+        if matches!(pair.as_rule(), Rule::EOI) {
+            continue;
+        }
+        assert!(matches!(pair.as_rule(), Rule::declare), "{:?}", pair.as_rule());
+        let pair = expect!(pair.into_inner().next());
         match pair.as_rule() {
             Rule::declare_fn => functions.push(parse_declare_fn(path, pair)?),
             Rule::declare_var => {}
@@ -59,6 +64,21 @@ pub fn build_ast<'a>(
     Ok(o)
 }
 
+fn parse_declare<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Declare<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::declare));
+    let pair = expect!(pair.into_inner().next());
+    let o = match pair.as_rule() {
+        Rule::declare_var => ast::Declare::Var(parse_declare_var(path, pair)?),
+        Rule::declare_fn => ast::Declare::Fn(parse_declare_fn(path, pair)?),
+        _ => unimplemented!("{:?}: {}", pair.as_rule(), pair),
+    };
+    Ok(o)
+}
+
+
 fn parse_declare_fn<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
@@ -75,11 +95,11 @@ fn parse_declare_fn<'a>(
     }
 
     let fullname = t.as_str();
-    let input = parse_declare_data(&path, inner.next().unwrap())?;
+    let input = parse_data(&path, inner.next().unwrap())?;
 
     t = inner.next().unwrap();
-    let output = if matches!(t.as_rule(), Rule::declare_data) {
-        let s = Some(parse_declare_data(&path, t)?);
+    let output = if matches!(t.as_rule(), Rule::data) {
+        let s = Some(parse_data(&path, t)?);
         t = inner.next().unwrap();
         s
     } else {
@@ -96,32 +116,86 @@ fn parse_declare_fn<'a>(
     })
 }
 
-fn parse_declare_data<'a>(
+fn parse_data<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
-) -> Result<ast::DeclareData<'a>, ParseErr<'a>> {
-    assert!(matches!(pair.as_rule(), Rule::declare_data));
+) -> Result<ast::Data<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::data));
     let loc = get_loc(path, &pair);
-    let mut data = Vec::new();
+    let mut fields = Vec::new();
     for pair in pair.into_inner() {
-        assert!(matches!(pair.as_rule(), Rule::declare_data_var));
-        let loc = get_loc(path, &pair);
-        let mut inner = pair.into_inner();
-        let var = expect!(inner.next()).as_str();
-        let type_ = parse_type(path, expect!(inner.next()))?;
-        let assign = if let Some(a) = inner.next() {
-            Some(parse_expr(path, a)?)
-        } else {
-            None
-        };
-        data.push(ast::DeclareDataVar {
-            var,
-            type_,
-            assign,
-            loc,
-        })
+        fields.push(parse_declare_var(path, pair)?);
     }
-    Ok(ast::DeclareData { data, loc })
+    Ok(ast::Data { fields, loc })
+}
+
+// fn parse_assign_var<'a> (
+//     path: &Arc<PathBuf>,
+//     pair: Pair<'a, Rule>,
+// ) -> Result<ast::Data<'a>, ParseErr<'a>> {
+// }
+
+fn parse_declare_var<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::DeclareVar<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::declare_var));
+    let loc = get_loc(path, &pair);
+    let mut visibility = HashSet::new();
+    let mut inner = pair.into_inner();
+
+    let mut t = expect!(inner.next());
+    let let_ = if matches!(t.as_rule(), Rule::LET) {
+        t = expect!(inner.next());
+        true
+    } else {
+        false
+    };
+
+    if matches!(t.as_rule(), Rule::VISIBILITY) {
+        visibility.insert(ast::Visibility::new(t.as_str()));
+        t = expect!(inner.next());
+    }
+
+    let (t, ownership) = parse_ownership(&mut inner, t);
+    let var = t.as_str();
+    let mut t: Option<_> = inner.next();
+    let type_ = if t.is_some() && matches!(t.as_ref().unwrap().as_rule(), Rule::type_) {
+        let type_ = parse_type(path, t.take().unwrap())?;
+        t = inner.next();
+        Some(type_)
+    } else {
+        None
+    };
+
+    let (assign_ownership, assign) = if let Some(tother) = t {
+        let (tother, assign_ownership) = parse_ownership(&mut inner, tother);
+        (assign_ownership, Some(parse_expr(path, tother)?))
+    } else {
+        (HashSet::new(), None)
+    };
+    Ok(ast::DeclareVar {
+        let_,
+        visibility,
+        ownership,
+        var,
+        type_,
+        assign_ownership,
+        assign,
+        loc,
+    })
+}
+
+fn parse_ownership<'a>(
+    inner: &mut pest::iterators::Pairs<'a, Rule>,
+    mut t: Pair<'a, Rule>,
+) -> (Pair<'a, Rule>, HashSet<ast::Ownership>) {
+    let mut ownership = HashSet::new();
+    while matches!(t.as_rule(), Rule::OWNERSHIP) {
+        ownership.insert(ast::Ownership::new(t.as_str()));
+        t = expect!(inner.next());
+    }
+    (t, ownership)
 }
 
 fn parse_block<'a>(
@@ -136,15 +210,12 @@ fn parse_block<'a>(
             Rule::expr => {
                 exprs.push(parse_expr(path, pair)?);
                 end = false;
-            },
+            }
             Rule::END => end = true,
-            _ => unreachable!("{}", pair),
+            _ => unreachable!("{:?}: {}", pair.as_rule(), pair),
         }
     }
-    Ok(ast::Block {
-        a: exprs,
-        end,
-    })
+    Ok(ast::Block { a: exprs, end })
 }
 
 fn parse_type<'a>(
@@ -174,12 +245,13 @@ fn parse_expr<'a>(
     assert!(matches!(pair.as_rule(), Rule::expr));
     let pair = pair.into_inner().next().unwrap();
     let o = match pair.as_rule() {
+        Rule::declare => ast::Expr::Declare(Box::new(parse_declare(path, pair)?)),
         Rule::value => ast::Expr::Value(parse_value(path, pair)?),
-        _ => panic!("not implemented"),
+        Rule::call_fn => ast::Expr::CallFn(parse_call_fn(path, pair)?),
+        _ => unreachable!("{}", pair),
     };
     Ok(o)
 }
-
 
 fn parse_value<'a>(
     path: &Arc<PathBuf>,
@@ -190,9 +262,22 @@ fn parse_value<'a>(
     let pair = pair.into_inner().next().unwrap();
     let a = match pair.as_rule() {
         Rule::string => ast::AValue::String(pair.as_str()),
-        _ => panic!("not implemented"),
+        Rule::integer => ast::AValue::Integer(expect!(pair.as_str().parse::<u64>())),
+        _ => panic!("{:?}: {}", pair.as_rule(), pair),
     };
     Ok(ast::Value { a, loc })
+}
+
+fn parse_call_fn<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::CallFn<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::call_fn));
+    let loc = get_loc(path, &pair);
+    let mut inner = pair.into_inner();
+    let name = expect!(inner.next()).as_str();
+    let data = parse_data(path, expect!(inner.next()))?;
+    Ok(ast::CallFn { name, data, loc })
 }
 
 fn get_loc<'a>(path: &Arc<PathBuf>, pair: &Pair<'a, Rule>) -> ast::Loc<'a> {

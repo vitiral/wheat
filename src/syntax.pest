@@ -7,7 +7,7 @@ file = _{
   ~ EOI
 }
 
-expr = _{
+expr = {
   value
   | closed
   | call_fn
@@ -88,14 +88,11 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 ////////////////
 // Declaration
 
-declare = _{ declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
-declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ declare_data ~ ("->" ~ declare_data)? ~ block }
+declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
+declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ data ~ ("->" ~ data)? ~ block }
 declare_var = { 
-  LET ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ type_ ~ ("=" ~ expr)?
+  LET? ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ type_? ~ ("=" ~ OWNERSHIP* ~ expr)?
 }
-declare_data = { "{" ~ (declare_data_var  ~ ";")* ~ (declare_data_var ~ ";"?)? ~ "}" }
-
-declare_data_var = { var ~ type_ ~ ("=" ~ expr)? }
 
 
 ////////////////
@@ -107,7 +104,7 @@ block = {
    "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
 }
 
-data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }
+data = { "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" }
 
 type_ = { "[" ~ type_inner ~ "]" }
 type_inner = { (identifier ~ type_? ~ ";")* ~ identifier ~ type_? ~ ";"?  }
@@ -115,4 +112,3 @@ type_inner = { (identifier ~ type_? ~ ";")* ~ identifier ~ type_? ~ ";"?  }
 ////////////////
 // Special Expressions
 call_fn = { fullname ~ data }
-assign_var = { var ~ type_? ~ "=" ~ expr }
