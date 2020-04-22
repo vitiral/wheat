@@ -112,6 +112,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "expect_macro"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3177366971c821fc3b187297f80c1d8246c9276815613184a1f8e61730fb2313"
+
+[[package]]
 name = "fake-simd"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,6 +453,7 @@ name = "wak-lang"
 version = "0.1.0"
 dependencies = [
  "env_logger",
+ "expect_macro",
  "log",
  "pest",
  "pest_derive",
