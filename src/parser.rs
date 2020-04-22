@@ -45,7 +45,11 @@ pub fn build_ast<'a>(
         if matches!(pair.as_rule(), Rule::EOI) {
             continue;
         }
-        assert!(matches!(pair.as_rule(), Rule::declare), "{:?}", pair.as_rule());
+        assert!(
+            matches!(pair.as_rule(), Rule::declare),
+            "{:?}",
+            pair.as_rule()
+        );
         let pair = expect!(pair.into_inner().next());
         match pair.as_rule() {
             Rule::declare_fn => functions.push(parse_declare_fn(path, pair)?),
@@ -77,7 +81,6 @@ fn parse_declare<'a>(
     };
     Ok(o)
 }
-
 
 fn parse_declare_fn<'a>(
     path: &Arc<PathBuf>,
