@@ -128,7 +128,23 @@ fn parse_block<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
 ) -> Result<ast::Block<'a>, ParseErr<'a>> {
-    panic!();
+    assert!(matches!(pair.as_rule(), Rule::block));
+    let mut exprs = Vec::new();
+    let mut end = false;
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::expr => {
+                exprs.push(parse_expr(path, pair)?);
+                end = false;
+            },
+            Rule::END => end = true,
+            _ => unreachable!("{}", pair),
+        }
+    }
+    Ok(ast::Block {
+        a: exprs,
+        end,
+    })
 }
 
 fn parse_type<'a>(
