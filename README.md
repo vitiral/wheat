@@ -1,13 +1,15 @@
+> **wac does not in any way work. It is an experimental language still in the design phase**
 
 The basic design:
 - Compiles directly and plainly to wasm
 - Expression based language. Expressions can "return a value"
 - Macro and const-function first language: many constructs (i.e. generics) don't exist
   but are solved with macros and insertable types.
-- Supports basic integer+float types, structs, enums and interfaces -- that's it
+- Supports basic integer, float and pointer types, structs, enums and interfaces, 
+  with an extensive std library.
 - Memorry is RAII with tracking of ownership. Stack/vs heap not controllable by
   programmer.
-- Inspired mostly by rust and a [withoutboats blog
+- Inspired by rust and a [withoutboats blog
   post](https://boats.gitlab.io/blog/post/notes-on-a-smaller-rust/)
 
 # Overview
