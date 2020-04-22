@@ -109,9 +109,8 @@ block = {
 
 data = { "{" ~ (assign_var  ~ ";")* ~ (assign_var ~ ";"?)? ~ "}" }
 
-type_ = {
-  "[" ~ (identifier ~ type_? ~ ";")* ~ identifier ~ type_? ~ ";"?  ~ "]"
-}
+type_ = { "[" ~ type_inner ~ "]" }
+type_inner = { (identifier ~ type_? ~ ";")* ~ identifier ~ type_? ~ ";"?  }
 
 ////////////////
 // Special Expressions
