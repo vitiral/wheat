@@ -137,6 +137,8 @@ The following control how the value can be used and when it is freed:
   will still be dropped at end of scope and may still have interrior mutability.
 - `[&]` is a lifetime tracker. It is sometimes used by structs to define lifetime 
   relationships and is not a real value.
+- `[5 own <type>]` specifies an `array` of memory with 5 values. The number must 
+   appear first and can be a const variable or macro call.
 
 For a struct/enum to be used in a `[const <type>]` context, it must have:
 - All of its types and their subtypes have `const` in them 
