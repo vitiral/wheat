@@ -118,40 +118,30 @@ There are a few ways to declare a value:
 
 The following control how the value can be used and when it is freed:
 
-- `own mut var [type]` declares an _owned exclusive value_. It can be
-  mutated and will be destroyed at end of scope. It can be cloned (`own+ v`,
-  creates a new value) or given to other functions as `own mut`. It can also be
-  converted into a non-mutable value (`let v = own v` or implicitly `f{a=own
-  v}`) but after that point it can no longer be used mutably.
-- `own var [type]` declares an _immutable value_, possibly shared via
-  refcount/GC or possibly const. It will be desroyed at end of scope, which may
-  simply decrement the refcount. Cloning (`v.clone()`) may simply increase the
-  number of references instead of making a new value.
-- `mut var [type]` declares an _exlusive reference_. It can be given to other
-  functions as a mutable or immutable reference. The lifetime (`lt$`) tracker
+- `[own <type>]` declares an _owned exclusive value_. It can be
+  mutated and will be destroyed at end of scope. It can be cloned 
+  or given to other functions as any of the ownership types.
+- `[&excl <type>]` declares an _exlusive reference_. It can be given to other
+  functions as an `excl` or `shared` reference. The lifetime (`lt$`) tracker
   will ensure that it is not used while other functions have access to it.
-- `var [type]` declares an _immutable reference_. It can be given to other
-  functions or stored inside collections. It is guaranteed safe by the `lt$`
-  tracker.
-- `sync var [type]` is an owned (probably refcounted) value that may be shared
-  across threads. Types which are declared `sync` can only receive owned or
-  sync values (not references). The language provides no way to convert sync
-  values to any of the other ownership types, but instead must have methods
-  which can convert them (i.e. `Mutex.lock$`).
-- `sync mut var [type]` is a mutable, owned value (probably using atomics or
-  lockfree algorithms) that may be shared and mutated across threads. It
-  can be converted to any of the other ownership types, as it is implied
-  that all kinds of ownership and reference are safely allowed. However,
-  only `sync mut` or `own mut` values may be inserted into it.
-- `const var [type]` declares a constant variable defined at compile time. It
-  cannot be mutated and can be converted into any immutable type except sync
-  (as there is no reason to do so, since sync is unusable without internal
-  tracking/mutability).
+- `[& <type>]` declares a _shared reference_. It can be given to other
+  functions or stored inside collections. It is guaranteed that there is not
+  a simultanious exclusive reference by the `lt$` tracker.
+- `[const <type>]` declares an _immutable value_ created at const/static time.
+  There is also `var [&const <type>]` which is a reference to a constant value.
+  `[const <type>]` will be recreated by the compiler at each point it is used,
+  `[&const <type>]` is an immutable global value in memory. Typically you want
+  to use `[&const <type>]` except for integers and very small structs.
+- Using `_` for the type causes it to be elided. 
+- An `[own const <type>]` is an owned constant, i.e. an immutable value that 
+  will still be dropped at end of scope and may still have interrior mutability.
+- `[&]` is a lifetime tracker. It is sometimes used by structs to define lifetime 
+  relationships and is not a real value.
 
-A struct can declare that it must never be mutable by simply not having any
-`mut` types (note that `sync mut` doesn't count). Internal mutabilty (i.e. to
-implement a refcount) can still be achieved by using unsafe contexts.
-
+For a struct/enum to be used in a `[const <type>]` context, it must have:
+- All of its types and their subtypes have `const` in them 
+- If a subtype is `[own const <type>]` it must have no interrior mutability 
+  or be marked as `constsafe` (only allowed by pkgs with `seclvl = "compiler"`)
 
 ## Taint analysis and lifetimes
 
@@ -262,12 +252,13 @@ Any type can be converted to have a virtual interface to explicit interfaces.
 The value is then stored in memory as a "fatpointer" to the value's data and to
 the vtable for its methods.
 
-Virtual interface types are declared with `&[]`:
+Virtual interface types are declared with `[<ownership> virt+<interfaces>]`. Essentially,
+`virt` replaces the _concrete type_:
 
 ```
 type AssertResult [Result$[Void,String]];
 
-fn assertEqU32{expected &[+Debug+Eq$[u32]], result &[+Debug+Into$[u32]]}
+fn assertEqU32{expected [shared virt+Debug+Eq$[u32]], result [shared virt+Debug+Into$[u32]]}
   -> AssertResult (
   if expected == result.into$[u32]{} (
     AssertResult.Ok{0=Void};
@@ -281,14 +272,14 @@ Regular functions can accept and return values which have virtual interfaces,
 and their code doesn't have to be generated for every possible variant.
 Functions which want to use non-virtual interfaces must be generated and
 inserted into their respective package. The eaiser way to do this is to be
-declared with the `gen$` macro, which will consume the `[+A+B]` type parameters
+declared with the `gen$` macro, which will consume the `[<ownership> _+A+B]` type parameters
 and convert the input values appropriately when called as a macro.
 
 ```
-gen$$[A [+Debug]] // Generic over A, which must implement Debug
+gen$@[A [+Debug]] // Generic over A, which must implement Debug
 fn assertEq{
-    expected: [+Debug+Eq$[A]];
-    result:[+Into$[A]];
+    expected: [shared _+Debug+Eq$[A]];
+    result:[shared _+Into$[A]];
   } -> AssertResult (
   let result = result.into$[A];
   if expected == result (
@@ -299,10 +290,10 @@ fn assertEq{
 )
 
 // Can then be called like
-assertEq$[A=u32]{expected=32, result=42}?;
+assertEq$@[A=u32]{expected=32, result=42}?;
 
 // Or telling it to infer the types.
-assertEq$[_]{expected=32, result=42}?;
+assertEq$@[_]{expected=32, result=42}?;
 ```
 
 
