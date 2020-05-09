@@ -16,7 +16,7 @@ As you can see, the API is defined by the exports blob, allowing the inner API t
 This is useful if the inner API needs to expand as the complexity of the package grows. Growth can happen
 internally without impact on the external API.
 
-On the import side, wak has a different strategy than most other languaes:
+On the import side, wak has a different strategy than most other languages:
 
 - Imports from within the directory of a script are done implicitly, meaning all items defined within the current directory
   are available as if they were imported. This allows the programer to move objects between files without harm.
@@ -43,8 +43,14 @@ exports {
 }
 ```
 
-The above allows `myInjectingMacro` to inject static methods onto the interface `MySpecialInterface`.
+The above allows `myInjectingMacro` to inject methods onto the interface `MySpecialInterface`.
 This enables `mypkg.FooStruct` to implement `MySpecialInterface`, injecting the type `[MySpecialInterface[mypkg.FooStruct]]`
+and the associated methods, i.e. 
+
+```
+let foo [FooStruct] = [FooStruct].new();
+[MySpecialInterface.gen]$@[A=FooStruct].doSomethingSpecial${person=foo}
+```
 
 > Implementation detail: the directory path (using the pkg name as the root), not the exports, is always the 
 > internal represenetation of the name, not the exports blob.
