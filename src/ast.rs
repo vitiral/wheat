@@ -35,7 +35,7 @@ pub enum ExprItem<'a> {
 #[derive(Debug)]
 pub struct Operation<'a> {
     pub operator: Operator,
-    pub right: ExprItem<'a>,
+    pub right: Expr<'a>,
     pub loc: Loc<'a>,
 }
 

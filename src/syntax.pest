@@ -9,17 +9,19 @@ file = _{
 
 expr = { 
   expr_item ~ (
-    operator ~ expr
-    | EXPAND ~ expr
-    | EXPAND2 ~ expr ~ expr
+    operation
+    | expand1
+    | expand2
   )*
 }
 
+
 expr_item = { value | closed | declare | iden }
-expand_item = { expr_item | arbitrary }
 
 ////////////////
-// Operations
+// Operation
+
+operation = { operator ~ expr }
 
 ACCESS      = { "." }
 CALL        = { "$" }
@@ -27,10 +29,14 @@ CALL        = { "$" }
 operator = _{ ACCESS | CALL }
 
 ////////////////
-// Macro Operations
+// Macro Expansion
+expand1 = { EXPAND ~ expand_item }
+expand2 = { EXPAND2 ~ expr_item ~ expand_item }
 
 EXPAND      = { "!" }
 EXPAND2     = { "!!" }
+
+expand_item = { expr_item | arbitrary }
 
 ////////////////
 // Keywords

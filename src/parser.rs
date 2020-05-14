@@ -294,7 +294,7 @@ fn parse_expr<'a>(
         } else {
             break;
         };
-        let right = parse_expr_item(path, inner.next().unwrap())?;
+        let right = parse_expr(path, inner.next().unwrap())?;
         operations.push(ast::Operation {operator, right, loc});
     }
     Ok(ast::Expr { left, operations, loc })
