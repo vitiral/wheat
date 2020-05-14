@@ -20,7 +20,7 @@ pub struct Loc<'a> {
 #[derive(Debug)]
 pub struct Expr<'a> {
     pub left: ExprItem<'a>,
-    pub operations: Vec<Operation<'a>>,
+    pub links: Vec<Link<'a>>,
     pub loc: Loc<'a>,
 }
 
@@ -33,6 +33,13 @@ pub enum ExprItem<'a> {
 }
 
 #[derive(Debug)]
+pub enum Link<'a> {
+    Operation(Operation<'a>),
+    Expand1(Expand1<'a>),
+    // Expand2(Expand2<'a>),
+}
+
+#[derive(Debug)]
 pub struct Operation<'a> {
     pub operator: Operator,
     pub right: Expr<'a>,
@@ -41,8 +48,22 @@ pub struct Operation<'a> {
 
 #[derive(Debug)]
 pub enum Operator {
-  Access,
-  Call,
+    Access,
+    Call,
+}
+
+#[derive(Debug)]
+pub struct Expand1<'a>(pub ExpandItem<'a>);
+
+#[derive(Debug)]
+pub enum ExpandItem<'a> {
+    ExprItem(ExprItem<'a>),
+    Arbitrary(Arbitrary<'a>),
+}
+
+#[derive(Debug)]
+pub struct Arbitrary<'a> {
+    pub loc: Loc<'a>,
 }
 
 #[derive(Debug)]
@@ -153,5 +174,4 @@ pub struct Type<'a> {
 #[derive(Debug)]
 pub enum AType {
     Literal(String),
-    // Macro1(...),
 }

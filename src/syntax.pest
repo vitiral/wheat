@@ -15,7 +15,6 @@ expr = {
   )*
 }
 
-
 expr_item = { value | closed | declare | iden }
 
 ////////////////
@@ -30,13 +29,13 @@ operator = _{ ACCESS | CALL }
 
 ////////////////
 // Macro Expansion
-expand1 = { EXPAND ~ expand_item }
+expand1 = { EXPAND1 ~ expand_item }
 expand2 = { EXPAND2 ~ expr_item ~ expand_item }
 
-EXPAND      = { "!" }
-EXPAND2     = { "!!" }
+EXPAND1     = _{ "!" }
+EXPAND2     = _{ "!!" }
 
-expand_item = { expr_item | arbitrary }
+expand_item = _{ expr_item | arbitrary }
 
 ////////////////
 // Keywords

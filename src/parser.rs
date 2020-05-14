@@ -83,8 +83,6 @@ fn parse_hello_world() {
     test_parse("test_data/hello_world.wak");
 }
 
-
-
 fn parse_declare<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
@@ -281,23 +279,42 @@ fn parse_expr<'a>(
     let loc = get_loc(path, &pair);
     let mut inner = pair.into_inner();
     let left = parse_expr_item(path, inner.next().unwrap())?;
-    let mut operations = Vec::new();
-    loop {
-        let (loc, operator) = if let Some(pair) = inner.next() {
-            let loc = get_loc(path, &pair);
-            let operator = match pair.as_rule() {
-                Rule::ACCESS => ast::Operator::Access,
-                Rule::CALL => ast::Operator::Call,
-                _ => unreachable!("{}", pair),
-            };
-            (loc, operator)
-        } else {
-            break;
-        };
-        let right = parse_expr(path, inner.next().unwrap())?;
-        operations.push(ast::Operation {operator, right, loc});
-    }
-    Ok(ast::Expr { left, operations, loc })
+    let links: Vec<_> = inner
+        .map(|pair| parse_link(path, pair))
+        .collect::<Result<_, _>>()?;
+    Ok(ast::Expr { left, links, loc })
+}
+
+fn parse_link<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Link<'a>, ParseErr<'a>> {
+    let o = match pair.as_rule() {
+        Rule::operation => ast::Link::Operation(parse_operation(path, pair)?),
+        Rule::expand1 => ast::Link::Expand1(parse_expand1(path, pair)?),
+        r @ _ => unreachable!("{:?}", r),
+    };
+    Ok(o)
+}
+
+fn parse_operation<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Operation<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::operation));
+    let loc = get_loc(path, &pair);
+    let mut inner = pair.into_inner();
+    let operator = match expect!(inner.next()).as_rule() {
+        Rule::ACCESS => ast::Operator::Access,
+        Rule::CALL => ast::Operator::Call,
+        p @ _ => unreachable!("{:?}", p),
+    };
+    let right = parse_expr(path, expect!(inner.next()))?;
+    Ok(ast::Operation {
+        operator,
+        right,
+        loc,
+    })
 }
 
 fn parse_expr_item<'a>(
@@ -316,13 +333,47 @@ fn parse_expr_item<'a>(
     Ok(o)
 }
 
+fn parse_expand1<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Expand1<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::expand1));
+    let pair = expect!(pair.into_inner().next());
+    Ok(ast::Expand1(parse_expand_item(path, pair)?))
+}
+
+fn parse_expand_item<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::ExpandItem<'a>, ParseErr<'a>> {
+    let o = match pair.as_rule() {
+        Rule::expr_item => ast::ExpandItem::ExprItem(parse_expr_item(path, pair)?),
+        Rule::arbitrary => ast::ExpandItem::Arbitrary(parse_arbitrary(path, pair)?),
+        _ => unreachable!("{}", pair),
+    };
+    Ok(o)
+}
+
+fn parse_arbitrary<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Arbitrary<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::arbitrary));
+    Ok(ast::Arbitrary {
+        loc: get_loc(path, &pair),
+    })
+}
+
 fn parse_iden<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
 ) -> Result<ast::Iden<'a>, ParseErr<'a>> {
     assert!(matches!(pair.as_rule(), Rule::iden));
     let loc = get_loc(path, &pair);
-    Ok(ast::Iden{ a: pair.as_str(), loc })
+    Ok(ast::Iden {
+        a: pair.as_str(),
+        loc,
+    })
 }
 
 fn parse_value<'a>(
