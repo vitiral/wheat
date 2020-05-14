@@ -91,7 +91,8 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
 declare_fn = { "fn" ~ VISIBILITY? ~ iden ~ data ~ ("->" ~ data)? ~ block }
 declare_var = { 
-  LET? ~ VISIBILITY? ~ OWNERSHIP* ~ iden ~ type_? ~ ("=" ~ OWNERSHIP* ~ expr)?
+  LET ~ VISIBILITY? ~ iden ~ type_? ~ ("=" ~ expr)?
+  | iden ~ type_? ~ "=" ~ expr
 }
 
 ////////////////
@@ -105,5 +106,5 @@ block = {
 
 data = { "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" }
 
-type_ = { "[" ~ type_inner ~ "]" }
+type_ = { "[" ~ integer? ~ OWNERSHIP* ~ type_inner ~ "]" }
 type_inner = { (expr ~ type_? ~ ";")* ~ expr ~ type_? ~ ";"?  }

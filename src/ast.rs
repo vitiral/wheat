@@ -29,6 +29,7 @@ pub enum ExprItem<'a> {
     Declare(Box<Declare<'a>>),
     Value(Value<'a>),
     Closed(Closed<'a>),
+    Iden(Iden<'a>),
 }
 
 #[derive(Debug)]
@@ -44,6 +45,11 @@ pub enum Operator {
   Call,
 }
 
+#[derive(Debug)]
+pub struct Iden<'a> {
+    pub a: &'a str,
+    pub loc: Loc<'a>,
+}
 
 #[derive(Debug)]
 pub struct Value<'a> {

@@ -310,9 +310,19 @@ fn parse_expr_item<'a>(
         Rule::declare => ast::ExprItem::Declare(Box::new(parse_declare(path, pair)?)),
         Rule::value => ast::ExprItem::Value(parse_value(path, pair)?),
         Rule::closed => ast::ExprItem::Closed(parse_closed(path, pair)?),
+        Rule::iden => ast::ExprItem::Iden(parse_iden(path, pair)?),
         _ => unreachable!("{}", pair),
     };
     Ok(o)
+}
+
+fn parse_iden<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Iden<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::iden));
+    let loc = get_loc(path, &pair);
+    Ok(ast::Iden{ a: pair.as_str(), loc })
 }
 
 fn parse_value<'a>(
