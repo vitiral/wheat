@@ -9,9 +9,9 @@ file = _{
 
 expr = { 
   expr_item ~ (
-    operator ~ expr_item*
-    | EXPAND ~ expand_item
-    | EXPAND2 ~ expr_item ~ expand_item
+    operator ~ expr
+    | EXPAND ~ expr
+    | EXPAND2 ~ expr ~ expr
   )*
 }
 
