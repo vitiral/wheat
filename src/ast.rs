@@ -18,11 +18,32 @@ pub struct Loc<'a> {
 }
 
 #[derive(Debug)]
-pub enum Expr<'a> {
+pub struct Expr<'a> {
+    pub left: ExprItem<'a>,
+    pub operations: Vec<Operation<'a>>,
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug)]
+pub enum ExprItem<'a> {
     Declare(Box<Declare<'a>>),
     Value(Value<'a>),
-    CallFn(CallFn<'a>),
+    Closed(Closed<'a>),
 }
+
+#[derive(Debug)]
+pub struct Operation<'a> {
+    pub operator: Operator,
+    pub right: ExprItem<'a>,
+    pub loc: Loc<'a>,
+}
+
+#[derive(Debug)]
+pub enum Operator {
+  Access,
+  Call,
+}
+
 
 #[derive(Debug)]
 pub struct Value<'a> {
@@ -34,13 +55,6 @@ pub struct Value<'a> {
 pub enum AValue<'a> {
     String(&'a str),
     Integer(u64),
-}
-
-#[derive(Debug)]
-pub struct CallFn<'a> {
-    pub name: &'a str,
-    pub data: Data<'a>,
-    pub loc: Loc<'a>,
 }
 
 #[derive(Debug)]
@@ -103,6 +117,13 @@ impl Ownership {
             _ => unreachable!(s),
         }
     }
+}
+
+#[derive(Debug)]
+pub enum Closed<'a> {
+    Block(Block<'a>),
+    Data(Data<'a>),
+    Type(Type<'a>),
 }
 
 #[derive(Debug)]

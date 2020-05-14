@@ -218,6 +218,21 @@ fn parse_ownership<'a>(
     (t, ownership)
 }
 
+fn parse_closed<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::Closed<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::closed));
+    let pair = pair.into_inner().next().unwrap();
+    let o = match pair.as_rule() {
+        Rule::block => ast::Closed::Block(parse_block(path, pair)?),
+        Rule::data => ast::Closed::Data(parse_data(path, pair)?),
+        Rule::type_ => ast::Closed::Type(parse_type(path, pair)?),
+        _ => unreachable!(pair),
+    };
+    Ok(o)
+}
+
 fn parse_block<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
@@ -263,11 +278,38 @@ fn parse_expr<'a>(
     pair: Pair<'a, Rule>,
 ) -> Result<ast::Expr<'a>, ParseErr<'a>> {
     assert!(matches!(pair.as_rule(), Rule::expr));
+    let loc = get_loc(path, &pair);
+    let mut inner = pair.into_inner();
+    let left = parse_expr_item(path, inner.next().unwrap())?;
+    let mut operations = Vec::new();
+    loop {
+        let (loc, operator) = if let Some(pair) = inner.next() {
+            let loc = get_loc(path, &pair);
+            let operator = match pair.as_rule() {
+                Rule::ACCESS => ast::Operator::Access,
+                Rule::CALL => ast::Operator::Call,
+                _ => unreachable!("{}", pair),
+            };
+            (loc, operator)
+        } else {
+            break;
+        };
+        let right = parse_expr_item(path, inner.next().unwrap())?;
+        operations.push(ast::Operation {operator, right, loc});
+    }
+    Ok(ast::Expr { left, operations, loc })
+}
+
+fn parse_expr_item<'a>(
+    path: &Arc<PathBuf>,
+    pair: Pair<'a, Rule>,
+) -> Result<ast::ExprItem<'a>, ParseErr<'a>> {
+    assert!(matches!(pair.as_rule(), Rule::expr_item));
     let pair = pair.into_inner().next().unwrap();
     let o = match pair.as_rule() {
-        Rule::declare => ast::Expr::Declare(Box::new(parse_declare(path, pair)?)),
-        Rule::value => ast::Expr::Value(parse_value(path, pair)?),
-        Rule::call_fn => ast::Expr::CallFn(parse_call_fn(path, pair)?),
+        Rule::declare => ast::ExprItem::Declare(Box::new(parse_declare(path, pair)?)),
+        Rule::value => ast::ExprItem::Value(parse_value(path, pair)?),
+        Rule::closed => ast::ExprItem::Closed(parse_closed(path, pair)?),
         _ => unreachable!("{}", pair),
     };
     Ok(o)
@@ -286,18 +328,6 @@ fn parse_value<'a>(
         _ => panic!("{:?}: {}", pair.as_rule(), pair),
     };
     Ok(ast::Value { a, loc })
-}
-
-fn parse_call_fn<'a>(
-    path: &Arc<PathBuf>,
-    pair: Pair<'a, Rule>,
-) -> Result<ast::CallFn<'a>, ParseErr<'a>> {
-    assert!(matches!(pair.as_rule(), Rule::call_fn));
-    let loc = get_loc(path, &pair);
-    let mut inner = pair.into_inner();
-    let name = expect!(inner.next()).as_str();
-    let data = parse_data(path, expect!(inner.next()))?;
-    Ok(ast::CallFn { name, data, loc })
 }
 
 fn get_loc<'a>(path: &Arc<PathBuf>, pair: &Pair<'a, Rule>) -> ast::Loc<'a> {

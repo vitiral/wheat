@@ -112,7 +112,8 @@ order doesn't matter, but that might not always be the case.
 # Operators
 There are only four operators
 
-- `$` function call operator. Calls the previous identifier with the next expression.
+- `.` access operator for accessing items within packages/structs/interfaces/etc.
+- `$` function call operator. Calls the previous expression with the next expression.
   If the next expression is a data expression, that is used as the named
   arguments. Otherwise it is used as the first argument for order-enabled
   expressions.
@@ -120,7 +121,6 @@ There are only four operators
   the previous identifier, producing a single expression.
 - `!!` double macro expansion operator. Performs macro expansion on the next
   two expressions per the previous identifier, producing a single expression.
-- `.` access operator for identifiers within packages/structs/interfaces/etc.
 
 # Ownership
 There are a few ways to declare a value:
@@ -148,7 +148,7 @@ The following control how the value can be used and when it is freed:
 - An `[own const <type>]` is an owned constant, i.e. an immutable value that 
   will still be dropped at end of scope and may still have interrior mutability.
 - `[&]` is a lifetime tracker. It is sometimes used by structs to define lifetime 
-  relationships and is not a real value.
+  relationships and is not a real value (has no size).
 - `[5 own <type>]` specifies an `array` of memory with 5 values. The number must 
    appear first and can be a const variable or macro call.
 

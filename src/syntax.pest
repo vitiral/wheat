@@ -7,29 +7,29 @@ file = _{
   ~ EOI
 }
 
-expr = {
-  value
-  | closed
-  | call_fn
-  | declare
-  | fullname
-}
+expr = { expr_item ~ (operator ~ expr_item)* }
+
+expr_item = { value | closed | declare | iden }
+
+////////////////
+// Operations
+
+ACCESS      = { "." }
+CALL        = { "$" }
+
+operator = _{ ACCESS | CALL }
 
 ////////////////
 // Keywords
 LET = { "let" }
 VISIBILITY = { "pub" }
-OWNERSHIP = { "own" | "mut" | "sync" | "const" }
+OWNERSHIP = { "const" | "own" | "&" | "excl" }
 END = { ";" }
 
 ///////////////////
 // Identifiers
-identifier = _{  /* call_macro1 |*/ fullname }
-fullname = @{ (!(ASCII_DIGIT | ".") ~ fullname_char) ~ fullname_char* }
-var = @{ (!ASCII_DIGIT ~ var_char) ~ var_char* }
-
-var_char = @{ "_" | ASCII_ALPHANUMERIC }
-fullname_char = @{"." | var_char }
+iden = @{ (!(ASCII_DIGIT) ~ iden_char) ~ iden_char* }
+iden_char = @{ "_" | ASCII_ALPHANUMERIC }
 
 ////////////////
 // Value Literals
@@ -89,16 +89,15 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 // Declaration
 
 declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
-declare_fn = { "fn" ~ VISIBILITY? ~ fullname ~ data ~ ("->" ~ data)? ~ block }
+declare_fn = { "fn" ~ VISIBILITY? ~ iden ~ data ~ ("->" ~ data)? ~ block }
 declare_var = { 
-  LET? ~ VISIBILITY? ~ OWNERSHIP* ~ var ~ type_? ~ ("=" ~ OWNERSHIP* ~ expr)?
+  LET? ~ VISIBILITY? ~ OWNERSHIP* ~ iden ~ type_? ~ ("=" ~ OWNERSHIP* ~ expr)?
 }
-
 
 ////////////////
 // Closed Expressions
 
-closed = _{ block | data | type_ }
+closed = { block | data | type_ }
 
 block = { 
    "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
@@ -107,8 +106,4 @@ block = {
 data = { "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" }
 
 type_ = { "[" ~ type_inner ~ "]" }
-type_inner = { (identifier ~ type_? ~ ";")* ~ identifier ~ type_? ~ ";"?  }
-
-////////////////
-// Special Expressions
-call_fn = { fullname ~ data }
+type_inner = { (expr ~ type_? ~ ";")* ~ expr ~ type_? ~ ";"?  }
