@@ -7,9 +7,16 @@ file = _{
   ~ EOI
 }
 
-expr = { expr_item ~ (operator ~ expr_item)* }
+expr = { 
+  expr_item ~ (
+    operator ~ expr_item*
+    | EXPAND ~ expand_item
+    | EXPAND2 ~ expr_item ~ expand_item
+  )*
+}
 
 expr_item = { value | closed | declare | iden }
+expand_item = { expr_item | arbitrary }
 
 ////////////////
 // Operations
@@ -18,6 +25,12 @@ ACCESS      = { "." }
 CALL        = { "$" }
 
 operator = _{ ACCESS | CALL }
+
+////////////////
+// Macro Operations
+
+EXPAND      = { "!" }
+EXPAND2     = { "!!" }
 
 ////////////////
 // Keywords
@@ -108,3 +121,8 @@ data = { "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" }
 
 type_ = { "[" ~ integer? ~ OWNERSHIP* ~ type_inner ~ "]" }
 type_inner = { (expr ~ type_? ~ ";")* ~ expr ~ type_? ~ ";"?  }
+
+arbitrary = { "(" ~ arbitrary_inner* ~ ")" }
+arbitrary_inner = _{ value | arbitrary | arbitrary_token }
+arbitrary_token = @{ ANY+ }
+
