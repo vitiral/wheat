@@ -34,7 +34,7 @@ let own v [i32] = (
   a + b
 );
 si.print(v);           // function call on system interface, prints "42"
-si.printf$("v={}", v); // macro call, prints "v=42"
+si.printf!("v={}", v); // macro call, prints "v=42"
 ```
 
 A type expression is always inside `[]`
@@ -52,7 +52,7 @@ Please ignore the `own` keyword, it will be discussed in ownership.
 fn splitl{own s [String]; delimiter [char]}
   -> { own left [String]; own right [String]; }
 (
-  for$$({let c = ch let i = index}; s.charsIndex{}) (
+  for!!({let c = ch let i = index}; s.charsIndex{}) (
     if c == delimter (
       let own right = s.removeTail(s.len() - i - 1);
       s.pop(); // pop delimiter
@@ -67,17 +67,17 @@ If you wanted to be able to address both the input and output structs by index,
 you would write the following
 
 ```
-byindex$
+byindex!
 fn split{own s [String]; delimiter [char]}
-  -> byindex${left [String]; right [String]}
+  -> byindex!{left [String]; right [String]}
   ( ... )
 
 // Can now call like:
 split{"foo,bar"; ','}
 ```
 
-`byindex$` and `for$$` are macros. Macros with one `$` consume the next
-expression. Macros with two `$` (like `for$$`) consume the next two
+`byindex!` and `for!!` are macros. Macros with one `!` consume the next
+expression. Macros with two `!` (like `for!!`) consume the next two
 expressions.
 
 Macros can consume any expression meaning they can consume a container (a
@@ -89,7 +89,7 @@ them an expression. For instance, to implement the Debug and Eq interfaces for
 a struct you might do:
 
 ```
-Debug.impl$ Eq.impl$
+Debug.impl! Eq.impl!
 struct Point (
   x: int;
   y: int;
@@ -97,7 +97,7 @@ struct Point (
 ```
 
 In this case, the expressions get consumed bottom-up. So the `struct` expression
-gets sent to `Eq.impl$` which gets passed to `Debug.impl$`. In this case, the
+gets sent to `Eq.impl!` which gets passed to `Debug.impl!`. In this case, the
 order doesn't matter, but that might not always be the case.
 
 
@@ -109,11 +109,23 @@ order doesn't matter, but that might not always be the case.
 - f32, f64
 - Void
 
+# Operators
+There are only four operators
+
+- `$` function call operator. Calls the previous identifier with the next expression.
+  If the next expression is a data expression, that is used as the named
+  arguments. Otherwise it is used as the first argument for order-enabled
+  expressions.
+- `!` macro expansion operator. Performs macro expansion on the next expression per
+  the previous identifier, producing a single expression.
+- `!!` double macro expansion operator. Performs macro expansion on the next
+  two expressions per the previous identifier, producing a single expression.
+- `.` access operator for identifiers within packages/structs/interfaces/etc.
 
 # Ownership
 There are a few ways to declare a value:
 - `let` expressions
-- function inputs and outputs
+- function inputs
 - structs and enums
 
 The following control how the value can be used and when it is freed:
@@ -122,11 +134,11 @@ The following control how the value can be used and when it is freed:
   mutated and will be destroyed at end of scope. It can be cloned 
   or given to other functions as any of the ownership types.
 - `[&excl <type>]` declares an _exlusive reference_. It can be given to other
-  functions as an `excl` or `shared` reference. The lifetime (`lt$`) tracker
+  functions as an `excl` or `shared` reference. The lifetime (`lt!`) tracker
   will ensure that it is not used while other functions have access to it.
 - `[& <type>]` declares a _shared reference_. It can be given to other
   functions or stored inside collections. It is guaranteed that there is not
-  a simultanious exclusive reference by the `lt$` tracker.
+  a simultanious exclusive reference by the `lt!` tracker.
 - `[const <type>]` declares an _immutable value_ created at const/static time.
   There is also `var [&const <type>]` which is a reference to a constant value.
   `[const <type>]` will be recreated by the compiler at each point it is used,
@@ -153,11 +165,11 @@ the compiler has no way to know the programer intended the output to be
 tied to the input.
 
 ```
-lt$$(s [res]) // "s" must outlive all values in "res" (result)
+lt!!(s [res]) // "s" must outlive all values in "res" (result)
 fn splitl{s [String]; delimiter [char]}
   -> {left [String]; right [String]}
 (
-  for$$({let c = v; let i = index}; s.charsIndex{}) (
+  for!!({let c = v; let i = index}; s.charsIndex{}) (
     if c == delimter (
       return {left=s.slice(0, i); right=s.slice(i+1, s.len())};
     )
@@ -195,14 +207,14 @@ To summarize:
     mutably. If the sub-reference was mutable, only other sub-references (i.e.
     fields) can be used.
 
-The `lt$$` macro is really just calling a compiler intrinsic macro which
+The `lt!!` macro is really just calling a compiler intrinsic macro which
 assigns _attributes_ to types. This is information known at compile time
 which can be used by internal and external tooling to help check programs.
 Values assigned must implement the `toJson` interface.
 
 ```
-attr$$(taint=Vec.of${
-   {symbol=tar.inp.s, taint=Taint.Outlive.from(tar.res.all$())};
+attr!!(taint=Vec.of!{
+   {symbol=tar.inp.s, taint=Taint.Outlive.from(tar.res.all!())};
 })
 ```
 
@@ -223,22 +235,22 @@ the ones in the standard library. Instead, the type must be _generated_ by a mac
 from within that package, which also  _injects_ it.
 
 ```
-type String [std.collect.String];
-type HashMap$ [std.collect.HashMap$];
+type [String] = [std.collect.String];
+type [HashMap] = [std.collect.HashMap];
 
-let m [HashMap$[String; u32]]
+let m [HashMap![String; u32]]
 ```
 
 The variant of `HashMap` (which implements the interface
 `std.collect.Map[std.collect.String;u32]`) is then _generated_ on the fly.
-Declaring the macro like `std.collect.HashMap$` is covered later.
+Declaring the macro like `std.collect.HashMap!` is covered later.
 
 "Generic functions" are also generated via a macro:
 
 ```
 // continuing above example
 m.insert{key="foo"; value=42}; // normal function
-assertEq$[_]{expected=someMap; result=m}?;
+assertEq![_]{expected=someMap; result=m}?;
 ```
 
 In the above example we use the `m` value normally by inserting a value into
@@ -258,14 +270,14 @@ Virtual interface types are declared with `[<ownership> virt+<interfaces>]`. Ess
 `virt` replaces the _concrete type_:
 
 ```
-type AssertResult [Result$[Void,String]];
+type AssertResult [Result![Void,String]];
 
-fn assertEqU32{expected [shared virt+Debug+Eq$[u32]], result [shared virt+Debug+Into$[u32]]}
+fn assertEqU32{expected [shared virt+Debug+Eq![u32]], result [shared virt+Debug+Into![u32]]}
   -> AssertResult (
-  if expected == result.into$[u32]{} (
+  if expected == result.into![u32]{} (
     AssertResult.Ok{0=Void};
   ) else (
-    AssertResult.Err{0=format$("expected != result; expected={}; result={}", expected, result)};
+    AssertResult.Err{0=format!("expected != result; expected={}; result={}", expected, result)};
   )
 )
 ```
@@ -274,28 +286,28 @@ Regular functions can accept and return values which have virtual interfaces,
 and their code doesn't have to be generated for every possible variant.
 Functions which want to use non-virtual interfaces must be generated and
 inserted into their respective package. The eaiser way to do this is to be
-declared with the `gen$` macro, which will consume the `[<ownership> _+A+B]` type parameters
+declared with the `gen!` macro, which will consume the `[<ownership> _+A+B]` type parameters
 and convert the input values appropriately when called as a macro.
 
 ```
-gen$@[A [+Debug]] // Generic over A, which must implement Debug
+gen!![A [+Debug+Eq![A]], B [+Into![A]] // Generic over A, which must implement Debug
 fn assertEq{
-    expected: [shared _+Debug+Eq$[A]];
-    result:[shared _+Into$[A]];
+    expected: [shared A];
+    result: [shared B];
   } -> AssertResult (
-  let result = result.into$[A];
-  if expected == result (
-    AssertResult.Ok{0=Void};
+  let result = result.into![A];
+  if expected.=result (
+    AssertResult.Ok!Void
   ) else (
-    AssertResult.Err{0=format$("expected != result; expected={}; result={}", expected, result)};
+    AssertResult.Err! format!("expected != result; expected={}; result={}", expected, result)
   )
 )
 
 // Can then be called like
-assertEq$@[A=u32]{expected=32, result=42}?;
+assertEq!![A=u32]{expected=32, result=42}?;
 
 // Or telling it to infer the types.
-assertEq$@[_]{expected=32, result=42}?;
+assertEq!![_]{expected=32, result=42}?;
 ```
 
 
@@ -305,15 +317,15 @@ assertEq$@[_]{expected=32, result=42}?;
 - functions: fn, inp, res
 - structs: Self
 - impl: self
-- macros: lt$$, gen$$, tar (target)
+- macros: lt!!, gen!!, tar (target)
 
 # Inline wasm
-The `wasm$` macro enables inline wasm. It can use any variables that are
+The `wasm!` macro enables inline wasm. It can use any variables that are
 accessible to the program at that point by using their cannonical names
 and is not allowed to use addresses that are not accessible local/global
 variables.
 
-The compiler itself also extensively uses `wasm_priv$` which can execute
+The compiler itself also extensively uses `wasm_priv!` which can execute
 ANY arbitrary wasm, but is not available to other programs.
 
 The canonical names are generated the following way. Note that the names will

@@ -68,6 +68,23 @@ pub fn build_ast<'a>(
     Ok(o)
 }
 
+#[cfg(test)]
+fn test_parse(path: &str) {
+    use std::fs;
+    use std::path::PathBuf;
+    let path = Arc::new(PathBuf::from(path));
+    let text = expect!(fs::read_to_string(path.as_ref()));
+    let res = expect!(parse(&path, &text));
+    build_ast(&path, res);
+}
+
+#[test]
+fn parse_hello_world() {
+    test_parse("test_data/hello_world.wak");
+}
+
+
+
 fn parse_declare<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
@@ -218,7 +235,7 @@ fn parse_block<'a>(
             _ => unreachable!("{:?}: {}", pair.as_rule(), pair),
         }
     }
-    Ok(ast::Block { a: exprs, end })
+    Ok(ast::Block { exprs, end })
 }
 
 fn parse_type<'a>(
