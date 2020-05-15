@@ -12,3 +12,5 @@ log = "0.4.0"
 pest = "2.0.0"
 pest_derive = "2.0.0"
 expect_macro = "*"
+siphasher = "0.3"
+

@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use pest::Span;
 use std::path::PathBuf;
 use std::sync::Arc;
+use siphasher::sip128::Hash128;
 
 #[derive(Debug)]
 pub struct File<'a> {
@@ -17,32 +18,79 @@ pub struct Loc<'a> {
     pub span: Span<'a>,
 }
 
+/// The `Expr` is the primary unit that the compiler uses for computing
+/// the result of the program. Each expression has an `id` and
+/// its dependencies. When its dependencies are resolved, then it
+/// can be expanded. Once all expansion operations are complete,
+/// it can be expanded into wasm.
+///
+/// An expression is expanded by adding to it's revs, with the last
+/// rev being the most complete. In the future, revs may be replaced
+/// with ids in a database (or something)
 #[derive(Debug)]
 pub struct Expr<'a> {
+    // /// The id of the expression. This never changes and is based on the hash
+    // /// of its first form.
+    // id: Hash128,
+
+    pub revs: Vec<ExprData<'a>>,
+    pub deps: Vec<Name<'a>>,
+
+    /// Whether the deps have been computed
+    pub deps_ready: bool,
+
+    /// Whether the expression is ready to be completed.
+    pub ready: bool,
+
+    /// Whether all items within the expression have been expanded.
+    pub complete: bool,
+
+    /// Whether the expression is entirely computed.
+    pub computed: bool,
+}
+
+impl <'a> Expr<'a> {
+    pub fn new(data: ExprData<'a>) -> Expr<'a> {
+        Expr {
+            revs: vec![data],
+            deps: vec![],
+            deps_ready: false,
+            ready: false,
+            complete: false,
+            computed: false,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ExprData<'a> {
+    // The first item in an expression, possibly only value.
     pub left: ExprItem<'a>,
-    pub links: Vec<Link<'a>>,
+
+    // The (optional) operation to perform on the left expression.
+    pub operation: Option<Operation<'a>>,
+
     pub loc: Loc<'a>,
 }
 
 #[derive(Debug)]
 pub enum ExprItem<'a> {
+    // Can appear directly in Syntax
     Declare(Box<Declare<'a>>),
     Value(Value<'a>),
     Closed(Closed<'a>),
     Iden(Iden<'a>),
-}
+    Arbitrary(Arbitrary<'a>),
 
-#[derive(Debug)]
-pub enum Link<'a> {
-    Operation(Operation<'a>),
-    Expand1(Expand1<'a>),
-    // Expand2(Expand2<'a>),
+    // Compressions
+    Name(Name<'a>), // Vec of idens with access operations.
 }
 
 #[derive(Debug)]
 pub struct Operation<'a> {
     pub operator: Operator,
-    pub right: Expr<'a>,
+    pub right: ExprItem<'a>,
+    pub right2: Option<ExprItem<'a>>,
     pub loc: Loc<'a>,
 }
 
@@ -53,13 +101,7 @@ pub enum Operator {
 }
 
 #[derive(Debug)]
-pub struct Expand1<'a>(pub ExpandItem<'a>);
-
-#[derive(Debug)]
-pub enum ExpandItem<'a> {
-    ExprItem(ExprItem<'a>),
-    Arbitrary(Arbitrary<'a>),
-}
+pub struct Expand1<'a>(pub ExprItem<'a>);
 
 #[derive(Debug)]
 pub struct Arbitrary<'a> {
@@ -70,6 +112,11 @@ pub struct Arbitrary<'a> {
 pub struct Iden<'a> {
     pub a: &'a str,
     pub loc: Loc<'a>,
+}
+
+#[derive(Debug)]
+pub struct Name<'a> {
+    iden: Vec<Iden<'a>>,
 }
 
 #[derive(Debug)]
