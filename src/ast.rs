@@ -89,8 +89,8 @@ pub enum ExprItem<'a> {
 #[derive(Debug)]
 pub struct Operation<'a> {
     pub operator: Operator,
-    pub right: ExprItem<'a>,
-    pub right2: Option<ExprItem<'a>>,
+    pub right: Expr<'a>,
+    pub right2: Option<Expr<'a>>,
     pub loc: Loc<'a>,
 }
 
@@ -98,6 +98,7 @@ pub struct Operation<'a> {
 pub enum Operator {
     Access,
     Call,
+    Expand1,
 }
 
 #[derive(Debug)]

@@ -1,0 +1,6 @@
+
+let const HELLO [StrSlice] = "Hello world!";
+
+fn main{} (
+  something!(this is not correct)
+)

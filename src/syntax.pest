@@ -12,10 +12,10 @@ expr = {
     operation
     | expand1
     | expand2
-  )*
+  )?
 }
 
-expr_item = { value | closed | declare | iden }
+expr_item = { value | closed | declare | iden | arbitrary }
 
 ////////////////
 // Operation
@@ -29,7 +29,7 @@ operator = _{ ACCESS | CALL }
 
 ////////////////
 // Macro Expansion
-expand1 = { EXPAND1 ~ expand_item }
+expand1 = { EXPAND1 ~ expr }
 expand2 = { EXPAND2 ~ expr_item ~ expand_item }
 
 EXPAND1     = _{ "!" }
@@ -129,5 +129,7 @@ type_inner = { (expr ~ type_? ~ ";")* ~ expr ~ type_? ~ ";"?  }
 
 arbitrary = { "(" ~ arbitrary_inner* ~ ")" }
 arbitrary_inner = _{ value | arbitrary | arbitrary_token }
-arbitrary_token = @{ ANY+ }
+arbitrary_token = @{ 
+  !("(" | ")") ~ ANY
+}
 
