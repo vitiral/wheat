@@ -1,4 +1,3 @@
-use crate::ast;
 use crate::ast::*;
 use pest;
 use pest::iterators::Pair;
@@ -85,13 +84,6 @@ pub struct LangParser;
 pub struct Src<'a> {
     path: Arc<PathBuf>,
     text: &'a str,
-}
-
-#[derive(Debug)]
-pub struct File {
-    path: Arc<PathBuf>,
-    globals: Vec<DeclareVar>,
-    functions: Vec<DeclareFn>,
 }
 
 pub struct ExprParser {
