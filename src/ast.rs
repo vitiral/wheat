@@ -1,3 +1,4 @@
+use crate::types::Loc;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -11,21 +12,6 @@ pub struct File {
     pub functions: Vec<DeclareFn>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Loc {
-    pub path: Arc<PathBuf>,
-    pub span: (u64, u64),
-}
-
-impl Loc {
-    pub fn start(&self) -> u64 {
-        self.span.0
-    }
-
-    pub fn end(&self) -> u64 {
-        self.span.1
-    }
-}
 /// The `Expr` is the primary unit that the compiler uses for computing
 /// the result of the program. Each expression has an `id` and
 /// its dependencies. When its dependencies are resolved, then it

@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::types::Error;
+use crate::types::{Error, Loc};
 use pest;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;

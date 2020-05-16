@@ -1,5 +1,7 @@
 use thiserror::Error;
 use crate::parser::Rule;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -34,3 +36,18 @@ impl Error {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Loc {
+    pub path: Arc<PathBuf>,
+    pub span: (u64, u64),
+}
+
+impl Loc {
+    pub fn start(&self) -> u64 {
+        self.span.0
+    }
+
+    pub fn end(&self) -> u64 {
+        self.span.1
+    }
+}
