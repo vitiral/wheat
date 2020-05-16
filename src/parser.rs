@@ -262,52 +262,51 @@ fn parse_data<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Data<'a> {
 
 #[throws]
 fn parse_declare_var<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::DeclareVar<'a> {
-    panic!();
-    // assert!(matches!(pair.as_rule(), Rule::declare_var));
-    // let loc = get_loc(&src.path, &pair);
-    // let mut visibility = HashSet::new();
-    // let mut inner = pair.into_inner();
+    assert!(matches!(pair.as_rule(), Rule::declare_var));
+    let loc = get_loc(&src.path, &pair);
+    let mut visibility = HashSet::new();
+    let mut inner = pair.into_inner();
 
-    // let mut t = expect!(inner.next());
-    // let let_ = if matches!(t.as_rule(), Rule::LET) {
-    //     t = expect!(inner.next());
-    //     true
-    // } else {
-    //     false
-    // };
+    let mut t = expect!(inner.next());
+    let let_ = if matches!(t.as_rule(), Rule::LET) {
+        t = expect!(inner.next());
+        true
+    } else {
+        false
+    };
 
-    // if matches!(t.as_rule(), Rule::VISIBILITY) {
-    //     visibility.insert(ast::Visibility::new(t.as_str()));
-    //     t = expect!(inner.next());
-    // }
+    if matches!(t.as_rule(), Rule::VISIBILITY) {
+        visibility.insert(ast::Visibility::new(t.as_str()));
+        t = expect!(inner.next());
+    }
 
-    // let (t, ownership) = parse_ownership(&mut inner, t);
-    // let var = t.as_str();
-    // let mut t: Option<_> = inner.next();
-    // let type_ = if t.is_some() && matches!(t.as_ref().unwrap().as_rule(), Rule::type_) {
-    //     let type_ = parse_type(src, t.take().unwrap())?;
-    //     t = inner.next();
-    //     Some(type_)
-    // } else {
-    //     None
-    // };
+    let (t, ownership) = parse_ownership(&mut inner, t);
+    let var = t.as_str();
+    let mut t: Option<_> = inner.next();
+    let type_ = if t.is_some() && matches!(t.as_ref().unwrap().as_rule(), Rule::type_) {
+        let type_ = parse_type(src, t.take().unwrap())?;
+        t = inner.next();
+        Some(type_)
+    } else {
+        None
+    };
 
-    // let (assign_ownership, assign) = if let Some(tother) = t {
-    //     let (tother, assign_ownership) = parse_ownership(&mut inner, tother);
-    //     (assign_ownership, Some(ExprParser::new().allow_arbitrary().parse((path, tother, true)))
-    // } else {
-    //     (HashSet::new(), None)
-    // };
-    // ast::DeclareVar {
-    //     let_,
-    //     visibility,
-    //     ownership,
-    //     var,
-    //     type_,
-    //     assign_ownership,
-    //     assign,
-    //     loc,
-    // }
+    let (assign_ownership, assign) = if let Some(tother) = t {
+        let (tother, assign_ownership) = parse_ownership(&mut inner, tother);
+        (assign_ownership, Some(ExprParser::new().allow_arbitrary().parse(path, tother, true))
+    } else {
+        (HashSet::new(), None)
+    };
+    ast::DeclareVar {
+        let_,
+        visibility,
+        ownership,
+        var,
+        type_,
+        assign_ownership,
+        assign,
+        loc,
+    }
 }
 
 fn parse_ownership<'a>(
