@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use std::path::PathBuf;
@@ -53,6 +54,9 @@ pub struct Expr {
 
     /// Whether the expression is entirely computed.
     pub computed: bool,
+
+    /// Assertions tied to this expression
+    pub assertExprs: HashMap<usize, String>,
 }
 
 impl Expr {
@@ -64,6 +68,7 @@ impl Expr {
             ready: false,
             complete: false,
             computed: false,
+            assertExprs: HashMap::new(),
         }
     }
 }
@@ -229,3 +234,6 @@ pub struct Type {
 pub enum AType {
     Literal(String),
 }
+
+// ####################
+// # TESTING
