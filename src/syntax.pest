@@ -27,10 +27,8 @@ CALL        = { "$" }
 
 operator = _{ ACCESS | CALL }
 
-////////////////
-// Macro Expansion
 expand1 = { EXPAND1 ~ expr }
-expand2 = { EXPAND2 ~ expr_item ~ expand_item }
+expand2 = { EXPAND2 ~ expr_item ~ expr }
 
 EXPAND1     = _{ "!" }
 EXPAND2     = _{ "!!" }

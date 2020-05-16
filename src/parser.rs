@@ -1,5 +1,5 @@
 use crate::ast::*;
-use crate::types::{Error, Loc};
+use crate::types::{CError, Loc};
 use pest;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
@@ -7,6 +7,8 @@ use pest::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use anyhow::{Context, Error};
+
 
 #[throws]
 pub fn parse_file(path: Arc<PathBuf>, text: &str) -> File {
@@ -55,17 +57,24 @@ pub struct Src<'a> {
 
 pub struct ExprParser {
     allow_arbitrary: bool,
+    arbitrary_context: Option<&'static str>,
 }
 
 impl ExprParser {
     fn new() -> Self {
         ExprParser {
             allow_arbitrary: false,
+            arbitrary_context: None,
         }
     }
 
     fn allow_arbitrary(mut self) -> Self {
         self.allow_arbitrary = true;
+        self
+    }
+
+    fn arbitrary_context(mut self, context: &'static str) -> Self {
+        self.arbitrary_context = Some(context);
         self
     }
 
@@ -79,7 +88,11 @@ impl ExprParser {
                 .allow_arbitrary()
                 .parse(src, expect!(inner.next()))?
         } else {
-            ExprItemParser::new().parse(src, expect!(inner.next()))?
+            let mut parser = ExprItemParser::new();
+            if let Some(c) = self.arbitrary_context {
+                parser = parser.arbitrary_context(c);
+            }
+            parser.parse(src, expect!(inner.next()))?
         };
         let operation = parse_operation(src, &mut inner)?;
         Expr::new(ExprData {
@@ -92,17 +105,24 @@ impl ExprParser {
 
 pub struct ExprItemParser {
     allow_arbitrary: bool,
+    arbitrary_context: Option<&'static str>,
 }
 
 impl ExprItemParser {
     fn new() -> Self {
         ExprItemParser {
             allow_arbitrary: false,
+            arbitrary_context: None,
         }
     }
 
     fn allow_arbitrary(mut self) -> Self {
         self.allow_arbitrary = true;
+        self
+    }
+
+    fn arbitrary_context(mut self, context: &'static str) -> Self {
+        self.arbitrary_context = Some(context);
         self
     }
 
@@ -121,7 +141,11 @@ impl ExprItemParser {
                 } else {
                     let offset = pair.as_span();
                     let err = LangParser::parse(Rule::block, pair.as_str()).unwrap_err();
-                    throw!(Error::parse_with_offset(src.text, offset, err));
+                    let mut err = Error::new(CError::parse_with_offset(src.text, offset, err));
+                    if let Some(c) = self.arbitrary_context {
+                        err = err.context(c);
+                    }
+                    throw!(err);
                 }
             }
             _ => unreachable!("{}", pair),
@@ -314,7 +338,7 @@ fn parse_operation(src: &Src, inner: &mut Pairs<Rule>) -> Option<Operation> {
                 Rule::CALL => Operator::Call,
                 p @ _ => unreachable!("{:?}", p),
             };
-            let right = ExprParser::new().parse(src, expect!(inner.next()))?;
+            let right = ExprParser::new().arbitrary_context("Note: arbitrary is not allowed with this operator").parse(src, expect!(inner.next()))?;
             let right2 = None;
             Operation {
                 operator,

@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Debug, Error)]
-pub enum Error {
+pub enum CError {
     #[error("syntax error: {0}")]
     Pest(#[from] pest::error::Error<Rule>),
 }
 
-impl Error {
+impl CError {
     pub fn parse_with_offset(src: &str, offset: pest::Span, err: pest::error::Error<Rule>) -> Self {
         use pest::error;
         match err.location {
@@ -20,7 +20,7 @@ impl Error {
                     p,
                     offset
                 );
-                Error::Pest(error::Error::new_from_pos(err.variant, pos))
+                CError::Pest(error::Error::new_from_pos(err.variant, pos))
             }
             error::InputLocation::Span((start, end)) => {
                 let span = expect!(
@@ -30,7 +30,7 @@ impl Error {
                     end,
                     offset
                 );
-                Error::Pest(error::Error::new_from_span(err.variant, span))
+                CError::Pest(error::Error::new_from_span(err.variant, span))
             }
         }
     }
