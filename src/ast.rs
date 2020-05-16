@@ -6,18 +6,27 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct File<'a> {
+pub struct File {
     pub path: Arc<PathBuf>,
-    pub globals: Vec<DeclareVar<'a>>,
-    pub functions: Vec<DeclareFn<'a>>,
+    pub globals: Vec<DeclareVar>,
+    pub functions: Vec<DeclareFn>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Loc<'a> {
+pub struct Loc {
     pub path: Arc<PathBuf>,
-    pub span: Span<'a>,
+    pub span: (u64, u64),
 }
 
+impl Loc {
+    pub fn start(&self) -> u64 {
+        self.span.0
+    }
+
+    pub fn end(&self) -> u64 {
+        self.span.1
+    }
+}
 /// The `Expr` is the primary unit that the compiler uses for computing
 /// the result of the program. Each expression has an `id` and
 /// its dependencies. When its dependencies are resolved, then it
@@ -28,12 +37,12 @@ pub struct Loc<'a> {
 /// rev being the most complete. In the future, revs may be replaced
 /// with ids in a database (or something)
 #[derive(Debug)]
-pub struct Expr<'a> {
+pub struct Expr {
     // /// The id of the expression. This never changes and is based on the hash
     // /// of its first form.
     // id: Hash128,
-    pub revs: Vec<ExprData<'a>>,
-    pub deps: Vec<Name<'a>>,
+    pub revs: Vec<ExprData>,
+    pub deps: Vec<Name>,
 
     /// Whether the deps have been computed
     pub deps_ready: bool,
@@ -48,8 +57,8 @@ pub struct Expr<'a> {
     pub computed: bool,
 }
 
-impl<'a> Expr<'a> {
-    pub fn new(data: ExprData<'a>) -> Expr<'a> {
+impl Expr {
+    pub fn new(data: ExprData) -> Expr {
         Expr {
             revs: vec![data],
             deps: vec![],
@@ -62,35 +71,35 @@ impl<'a> Expr<'a> {
 }
 
 #[derive(Debug)]
-pub struct ExprData<'a> {
+pub struct ExprData {
     // The first item in an expression, possibly only value.
-    pub left: ExprItem<'a>,
+    pub left: ExprItem,
 
     // The (optional) operation to perform on the left expression.
-    pub operation: Option<Operation<'a>>,
+    pub operation: Option<Operation>,
 
-    pub loc: Loc<'a>,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub enum ExprItem<'a> {
+pub enum ExprItem {
     // Can appear directly in Syntax
-    Declare(Box<Declare<'a>>),
-    Value(Value<'a>),
-    Closed(Closed<'a>),
-    Iden(Iden<'a>),
-    Arbitrary(Arbitrary<'a>),
+    Declare(Box<Declare>),
+    Value(Value),
+    Closed(Closed),
+    Iden(Iden),
+    Arbitrary(Arbitrary),
 
     // Compressions
-    Name(Name<'a>), // Vec of idens with access operations.
+    Name(Name), // Vec of idens with access operations.
 }
 
 #[derive(Debug)]
-pub struct Operation<'a> {
+pub struct Operation {
     pub operator: Operator,
-    pub right: Expr<'a>,
-    pub right2: Option<Expr<'a>>,
-    pub loc: Loc<'a>,
+    pub right: Expr,
+    pub right2: Option<Expr>,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
@@ -101,62 +110,62 @@ pub enum Operator {
 }
 
 #[derive(Debug)]
-pub struct Expand1<'a>(pub ExprItem<'a>);
+pub struct Expand1(pub ExprItem);
 
 #[derive(Debug)]
-pub struct Arbitrary<'a> {
-    pub loc: Loc<'a>,
+pub struct Arbitrary {
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub struct Iden<'a> {
-    pub a: &'a str,
-    pub loc: Loc<'a>,
+pub struct Iden {
+    pub a: String,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub struct Name<'a> {
-    iden: Vec<Iden<'a>>,
+pub struct Name {
+    iden: Vec<Iden>,
 }
 
 #[derive(Debug)]
-pub struct Value<'a> {
-    pub a: AValue<'a>,
-    pub loc: Loc<'a>,
+pub struct Value {
+    pub a: AValue,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub enum AValue<'a> {
-    String(&'a str),
+pub enum AValue {
+    String(String),
     Integer(u64),
 }
 
 #[derive(Debug)]
-pub enum Declare<'a> {
-    Var(DeclareVar<'a>),
-    Fn(DeclareFn<'a>),
+pub enum Declare {
+    Var(DeclareVar),
+    Fn(DeclareFn),
 }
 
 #[derive(Debug)]
-pub struct DeclareFn<'a> {
+pub struct DeclareFn {
     pub visibility: HashSet<Visibility>,
-    pub name: &'a str,
-    pub input: Data<'a>,
-    pub output: Option<Data<'a>>,
-    pub block: Block<'a>,
-    pub loc: Loc<'a>,
+    pub name: String,
+    pub input: Data,
+    pub output: Option<Data>,
+    pub block: Block,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub struct DeclareVar<'a> {
+pub struct DeclareVar {
     pub let_: bool,
     pub visibility: HashSet<Visibility>,
     pub ownership: HashSet<Ownership>,
-    pub var: &'a str,
-    pub type_: Option<Type<'a>>,
+    pub var: String,
+    pub type_: Option<Type>,
     pub assign_ownership: HashSet<Ownership>,
-    pub assign: Option<Expr<'a>>,
-    pub loc: Loc<'a>,
+    pub assign: Option<Expr>,
+    pub loc: Loc,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -194,28 +203,28 @@ impl Ownership {
 }
 
 #[derive(Debug)]
-pub enum Closed<'a> {
-    Block(Block<'a>),
-    Data(Data<'a>),
-    Type(Type<'a>),
+pub enum Closed {
+    Block(Block),
+    Data(Data),
+    Type(Type),
 }
 
 #[derive(Debug)]
-pub struct Block<'a> {
-    pub exprs: Vec<Expr<'a>>,
+pub struct Block {
+    pub exprs: Vec<Expr>,
     pub end: bool,
 }
 
 #[derive(Debug)]
-pub struct Data<'a> {
-    pub fields: Vec<DeclareVar<'a>>,
-    pub loc: Loc<'a>,
+pub struct Data {
+    pub fields: Vec<DeclareVar>,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub struct Type<'a> {
+pub struct Type {
     pub a: AType,
-    pub loc: Loc<'a>,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
