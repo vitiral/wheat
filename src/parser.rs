@@ -15,15 +15,15 @@ pub struct LangParser;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("syntax error: {0}")]
-    Pest (
-        #[from]
-        pest::error::Error<Rule>,
-    ),
+    Pest(#[from] pest::error::Error<Rule>),
 }
 
-fn pest_err_with_offset(err: pest::error::Error<Rule>, offset: pest::Position) -> pest::error::Error<Rule> {
-    use pest::error::InputLocation;
+fn pest_err_with_offset(
+    err: pest::error::Error<Rule>,
+    offset: pest::Position,
+) -> pest::error::Error<Rule> {
     use pest::error::Error;
+    use pest::error::InputLocation;
     match err.location {
         InputLocation::Pos(p) => {
             // Agh, I do need the original text.
@@ -51,10 +51,7 @@ pub struct Ast<'a> {
 
 impl<'a> Ast<'a> {
     #[throws]
-    pub fn new(
-    path: &Arc<PathBuf>,
-    src: &'a str,
-    ) -> Ast<'a> {
+    pub fn new(path: &Arc<PathBuf>, src: &'a str) -> Ast<'a> {
         let pairs = LangParser::parse(Rule::file, src)?.collect();
 
         Ast {
@@ -66,7 +63,6 @@ impl<'a> Ast<'a> {
         }
     }
 }
-
 
 impl<'a> ParseErr<'a> {
     pub fn new(pair: Pair<'a, Rule>, msg: String) -> ParseErr<'a> {
@@ -85,10 +81,7 @@ pub fn parse<'a>(
 }
 
 #[throws(ParseErr<'a>)]
-pub fn build_ast<'a>(
-    path: &Arc<PathBuf>,
-    pairs: Vec<Pair<'a, Rule>>,
-) -> ast::File<'a> {
+pub fn build_ast<'a>(path: &Arc<PathBuf>, pairs: Vec<Pair<'a, Rule>>) -> ast::File<'a> {
     let mut globals: Vec<ast::DeclareVar<'a>> = Vec::new();
     let mut functions: Vec<ast::DeclareFn<'a>> = Vec::new();
 
@@ -343,7 +336,11 @@ fn parse_expr<'a>(
         parse_expr_item(path, inner.next().unwrap(), false)?
     };
     let operation = parse_operation(path, &mut inner)?;
-    let data = ast::ExprData { left, operation, loc };
+    let data = ast::ExprData {
+        left,
+        operation,
+        loc,
+    };
     Ok(ast::Expr::new(data))
 }
 
@@ -367,22 +364,31 @@ fn parse_operation<'a>(
             };
             let right = parse_expr(path, expect!(inner.next()), false)?;
             let right2 = None;
-            ast::Operation { operator, right, right2, loc }
-        },
+            ast::Operation {
+                operator,
+                right,
+                right2,
+                loc,
+            }
+        }
         Rule::expand1 => {
             let mut inner = pair.into_inner();
             let operator = ast::Operator::Expand1;
             let right = parse_expr(path, expect!(inner.next()), true)?;
             let right2 = None;
-            ast::Operation { operator, right, right2, loc }
-        },
+            ast::Operation {
+                operator,
+                right,
+                right2,
+                loc,
+            }
+        }
         // Rule::expand2 => {
         // }
         _ => unreachable!("{}", pair),
     };
     Ok(Some(o))
 }
-
 
 fn parse_expr_item<'a>(
     path: &Arc<PathBuf>,
@@ -396,14 +402,21 @@ fn parse_expr_item<'a>(
         Rule::value => ast::ExprItem::Value(parse_value(path, pair)?),
         Rule::closed => ast::ExprItem::Closed(parse_closed(path, pair)?),
         Rule::iden => ast::ExprItem::Iden(parse_iden(path, pair)?),
-        Rule::arbitrary => if allow_arbitrary {
+        Rule::arbitrary => {
+            if allow_arbitrary {
                 ast::ExprItem::Arbitrary(parse_arbitrary(path, pair)?)
             } else {
                 // TODO: make this better. The pos needs to match the original source and...
                 // everything.
-                return Err(ParseErr { msg: format!("Inside BLOCK: {}",  LangParser::parse(Rule::block,
-                        pair.as_str()).unwrap_err()), pair: pair }); 
+                return Err(ParseErr {
+                    msg: format!(
+                        "Inside BLOCK: {}",
+                        LangParser::parse(Rule::block, pair.as_str()).unwrap_err()
+                    ),
+                    pair: pair,
+                });
             }
+        }
         _ => unreachable!("{}", pair),
     };
     Ok(o)

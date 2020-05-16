@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use pest::Span;
+use siphasher::sip128::Hash128;
 use std::path::PathBuf;
 use std::sync::Arc;
-use siphasher::sip128::Hash128;
 
 #[derive(Debug)]
 pub struct File<'a> {
@@ -32,7 +32,6 @@ pub struct Expr<'a> {
     // /// The id of the expression. This never changes and is based on the hash
     // /// of its first form.
     // id: Hash128,
-
     pub revs: Vec<ExprData<'a>>,
     pub deps: Vec<Name<'a>>,
 
@@ -49,7 +48,7 @@ pub struct Expr<'a> {
     pub computed: bool,
 }
 
-impl <'a> Expr<'a> {
+impl<'a> Expr<'a> {
     pub fn new(data: ExprData<'a>) -> Expr<'a> {
         Expr {
             revs: vec![data],
