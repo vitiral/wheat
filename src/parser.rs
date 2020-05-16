@@ -70,28 +70,29 @@ pub fn build_ast<'a>(
 }
 
 #[cfg(test)]
-fn test_parse(path: &str) {
+fn test_parse(path: &str) -> Result<(), String> {
     use std::fs;
     use std::path::PathBuf;
     let path = Arc::new(PathBuf::from(path));
     let text = expect!(fs::read_to_string(path.as_ref()));
     let res = expect!(parse(&path, &text));
-    build_ast(&path, res);
+    build_ast(&path, res).map_err(|s| format!("{:?}", s))?;
+    Ok(())
 }
 
 #[test]
 fn parse_hello_world() {
-    test_parse("test_data/hello_world.wht");
+    expect!(test_parse("test_data/hello_world.wht"));
 }
 
 #[test]
 fn parse_hello_world_expanded() {
-    test_parse("test_data/hello_world_expanded.wht");
+    expect!(test_parse("test_data/hello_world_expanded.wht"));
 }
 
 #[test]
 fn parse_invalid_arbitarary() {
-    test_parse("test_data/invalid_arbitrary.wht");
+    test_parse("test_data/invalid_arbitrary.wht").unwrap_err();
 }
 
 fn parse_declare<'a>(
@@ -158,12 +159,6 @@ fn parse_data<'a>(
     Ok(ast::Data { fields, loc })
 }
 
-// fn parse_assign_var<'a> (
-//     path: &Arc<PathBuf>,
-//     pair: Pair<'a, Rule>,
-// ) -> Result<ast::Data<'a>, ParseErr<'a>> {
-// }
-
 fn parse_declare_var<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
@@ -199,7 +194,7 @@ fn parse_declare_var<'a>(
 
     let (assign_ownership, assign) = if let Some(tother) = t {
         let (tother, assign_ownership) = parse_ownership(&mut inner, tother);
-        (assign_ownership, Some(parse_expr(path, tother)?))
+        (assign_ownership, Some(parse_expr(path, tother, true)?))
     } else {
         (HashSet::new(), None)
     };
@@ -252,7 +247,7 @@ fn parse_block<'a>(
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::expr => {
-                exprs.push(parse_expr(path, pair)?);
+                exprs.push(parse_expr(path, pair, true)?);
                 end = false;
             }
             Rule::END => end = true,
@@ -285,11 +280,16 @@ fn parse_type<'a>(
 fn parse_expr<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
+    allow_arbitrary: bool,
 ) -> Result<ast::Expr<'a>, ParseErr<'a>> {
     assert!(matches!(pair.as_rule(), Rule::expr), "{}", pair);
     let loc = get_loc(path, &pair);
     let mut inner = pair.into_inner();
-    let left = parse_expr_item(path, inner.next().unwrap())?;
+    let left = if allow_arbitrary {
+        parse_expr_item(path, inner.next().unwrap(), false)?
+    } else {
+        parse_expr_item(path, inner.next().unwrap(), false)?
+    };
     let operation = parse_operation(path, &mut inner)?;
     let data = ast::ExprData { left, operation, loc };
     Ok(ast::Expr::new(data))
@@ -313,14 +313,14 @@ fn parse_operation<'a>(
                 Rule::CALL => ast::Operator::Call,
                 p @ _ => unreachable!("{:?}", p),
             };
-            let right = parse_expr(path, expect!(inner.next()))?;
+            let right = parse_expr(path, expect!(inner.next()), false)?;
             let right2 = None;
             ast::Operation { operator, right, right2, loc }
         },
         Rule::expand1 => {
             let mut inner = pair.into_inner();
             let operator = ast::Operator::Expand1;
-            let right = parse_expr(path, expect!(inner.next()))?;
+            let right = parse_expr(path, expect!(inner.next()), true)?;
             let right2 = None;
             ast::Operation { operator, right, right2, loc }
         },
@@ -331,13 +331,12 @@ fn parse_operation<'a>(
     Ok(Some(o))
 }
 
+
 fn parse_expr_item<'a>(
     path: &Arc<PathBuf>,
     pair: Pair<'a, Rule>,
+    allow_arbitrary: bool,
 ) -> Result<ast::ExprItem<'a>, ParseErr<'a>> {
-    if matches!(pair.as_rule(), Rule::arbitrary) {
-        return Ok(ast::ExprItem::Arbitrary(parse_arbitrary(path, pair)?));
-    }
     assert!(matches!(pair.as_rule(), Rule::expr_item));
     let pair = pair.into_inner().next().unwrap();
     let o = match pair.as_rule() {
@@ -345,7 +344,14 @@ fn parse_expr_item<'a>(
         Rule::value => ast::ExprItem::Value(parse_value(path, pair)?),
         Rule::closed => ast::ExprItem::Closed(parse_closed(path, pair)?),
         Rule::iden => ast::ExprItem::Iden(parse_iden(path, pair)?),
-        Rule::arbitrary => ast::ExprItem::Arbitrary(parse_arbitrary(path, pair)?),
+        Rule::arbitrary => if allow_arbitrary {
+                ast::ExprItem::Arbitrary(parse_arbitrary(path, pair)?)
+            } else {
+                // TODO: make this better. The pos needs to match the original source and...
+                // everything.
+                return Err(ParseErr { msg: format!("Inside BLOCK: {}",  LangParser::parse(Rule::block,
+                        pair.as_str()).unwrap_err()), pair: pair }); 
+            }
         _ => unreachable!("{}", pair),
     };
     Ok(o)
@@ -357,7 +363,7 @@ fn parse_expand1<'a>(
 ) -> Result<ast::Expand1<'a>, ParseErr<'a>> {
     assert!(matches!(pair.as_rule(), Rule::expand1));
     let pair = expect!(pair.into_inner().next());
-    Ok(ast::Expand1(parse_expr_item(path, pair)?))
+    Ok(ast::Expand1(parse_expr_item(path, pair, true)?))
 }
 
 fn parse_arbitrary<'a>(
