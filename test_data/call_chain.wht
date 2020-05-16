@@ -1,6 +1,24 @@
 
 fn main{} (
+  assertExpr!!('''
+  index: 0
+
+  int: 1
+  operator: '.'
+  right:
+    iden: 'addU32'
+    operator '$'
+    right:
+      int: 4
+      operator '.'
+      right:
+        iden: 'addU32'
+        operator: '$'
+        right:
+          int: 5
+  ''')
+
   1
     .addU32$ 4
     .addU32$ 5;
-)
+);

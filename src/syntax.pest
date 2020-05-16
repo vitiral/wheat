@@ -3,7 +3,7 @@ COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 
 file = _{
   SOI
-  ~ (declare ~ ";"?)*
+  ~ (expr ~ ";")*
   ~ EOI
 }
 
@@ -48,7 +48,7 @@ iden_char = @{ "_" | ASCII_ALPHANUMERIC }
 
 ////////////////
 // Value Literals
-value = { bool | float | integer | char | string | raw_string }
+value = { bool | float | integer | raw_string | string | char }
 
 bool = { "true" | "false" }
 
@@ -68,22 +68,20 @@ integer = @{
 }
 
 char = {
-  "'" ~ string_char ~ "'"
+  "'" ~ !("'") ~ string_char ~ "'"
 }
 
 raw_string = ${
-  "''" ~ PUSH("'"*)  // push the number of `'` onto the stack
+  "''" ~ PUSH("'"*) // push the number of `'` onto the stack
   ~ raw_string_inner
   ~ "''" ~ POP
 }
 
-raw_string_inner = @{
-  (
-    // Consume any character unless the next
-    // characters are the correct number of single-quotes
-    !("''" ~ PEEK)
-    ~ ANY
-  )
+raw_string_inner = @{ raw_string_char* }
+raw_string_char = @{
+  // Consume any character unless the next
+  // characters are the correct number of single-quotes
+  !("''" ~ PEEK) ~ ANY
 }
 
 string = ${

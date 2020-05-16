@@ -8,8 +8,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct File {
     pub path: Arc<PathBuf>,
-    pub globals: Vec<DeclareVar>,
-    pub functions: Vec<DeclareFn>,
+    pub exprs: Vec<Expr>,
 }
 
 /// The `Expr` is the primary unit that the compiler uses for computing
@@ -125,6 +124,7 @@ pub struct Value {
 
 #[derive(Debug)]
 pub enum AValue {
+    Char(char),
     String(String),
     Integer(u64),
 }

@@ -16,6 +16,7 @@ extern crate pest_derive;
 mod ast;
 mod parser;
 mod types;
+mod reduce;
 
 use std::fs;
 use std::path::PathBuf;

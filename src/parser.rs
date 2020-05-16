@@ -1,6 +1,6 @@
 use crate::ast::*;
 use crate::types::{CError, Loc};
-use anyhow::{Context, Error};
+use anyhow::{Context, Error, Result};
 use pest;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
@@ -8,6 +8,8 @@ use pest::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use beau_collector::BeauCollector as _;
+
 
 #[throws]
 pub fn parse_file(path: Arc<PathBuf>, text: &str) -> File {
@@ -15,33 +17,13 @@ pub fn parse_file(path: Arc<PathBuf>, text: &str) -> File {
         path: path.clone(),
         text,
     };
-    let globals = Vec::new();
-    let mut functions = Vec::new();
-    for pair in LangParser::parse(Rule::file, src.text)? {
-        if matches!(pair.as_rule(), Rule::EOI) {
-            continue;
-        }
-        assert!(
-            matches!(pair.as_rule(), Rule::declare),
-            "{:?}",
-            pair.as_rule()
-        );
-        let pair = expect!(pair.into_inner().next());
-        match pair.as_rule() {
-            Rule::declare_fn => {
-                functions.push(parse_declare_fn(&src, pair)?);
-            }
-            Rule::declare_var => {}
-            Rule::EOI => {}
-            _ => unreachable!("{}", pair),
-        }
-    }
 
-    File {
-        path,
-        globals,
-        functions,
-    }
+    let exprs: Vec<_> = LangParser::parse(Rule::file, src.text)?
+        .filter(|pair| !matches!(pair.as_rule(), Rule::EOI))
+        .map(|pair| ExprParser::new().parse(&src, pair))
+        .bcollect()?;
+
+    File { path, exprs }
 }
 
 #[derive(Parser)]
@@ -338,7 +320,7 @@ fn parse_operation(src: &Src, inner: &mut Pairs<Rule>) -> Option<Operation> {
                 p @ _ => unreachable!("{:?}", p),
             };
             let right = ExprParser::new()
-                .arbitrary_context("Note: arbitrary block not allowed with this operator")
+                .arbitrary_context("Note: arbitrary block not allowed with this operator.\n")
                 .parse(src, expect!(inner.next()))?;
             let right2 = None;
             Operation {
@@ -370,7 +352,7 @@ fn parse_operation(src: &Src, inner: &mut Pairs<Rule>) -> Option<Operation> {
                 let loc = Loc::new(&src.path, &pair);
                 let left = ExprItemParser::new()
                     .arbitrary_context(
-                        "Note: arbitrary block not allowed in the first expression of expand2",
+                        "Note: arbitrary block not allowed in the first expression of expand2.\n",
                     )
                     .parse(src, pair)?;
 
@@ -422,6 +404,9 @@ fn parse_value(src: &Src, pair: Pair<Rule>) -> Value {
     let pair = pair.into_inner().next().unwrap();
     let a = match pair.as_rule() {
         Rule::string => AValue::String(pair.as_str().to_string()),
+        Rule::raw_string => AValue::String(pair.as_str().to_string()),
+        // FIXME: I think this has to parse it with escapes?
+        Rule::char => AValue::Char(expect!(pair.as_str().chars().next())),
         Rule::integer => AValue::Integer(expect!(pair.as_str().parse::<u64>())),
         _ => panic!("{:?}: {}", pair.as_rule(), pair),
     };
@@ -449,7 +434,7 @@ mod tests {
         let path = Arc::new(PathBuf::from(path));
         let text = expect!(fs::read_to_string(path.as_ref()));
         let file = parse_file(path.clone(), &text)?;
-        println!("### {:?} FILE:\n{:?}", path, file);
+        println!("### {:?} FILE:\n{:#?}", path, file);
         file
     }
 
@@ -476,5 +461,10 @@ mod tests {
     #[test]
     fn parse_expand2() {
         expect!(test_parse("test_data/expand2.wht"));
+    }
+
+    #[test]
+    fn parse_raw_string() {
+        expect!(test_parse("test_data/raw_string.wht"));
     }
 }
