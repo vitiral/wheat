@@ -15,6 +15,7 @@ extern crate pest_derive;
 
 mod ast;
 mod parser;
+mod types;
 
 use std::fs;
 use std::path::PathBuf;
@@ -40,7 +41,7 @@ fn main() -> Result<(), String> {
     let input = Arc::new(opt.input);
     let text = fs::read_to_string(input.as_ref())
         .map_err(|e| format!("Failed to parse {}: {}", input.display(), e))?;
-    let _file = match parser::parse(input.clone(), &text) {
+    let file = match parser::parse_file(input.clone(), &text) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Failed to parse {}\n{:#?}", input.display(), e);

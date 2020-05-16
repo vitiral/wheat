@@ -56,7 +56,7 @@ pub struct Expr {
     pub computed: bool,
 
     /// Assertions tied to this expression
-    pub assertExprs: HashMap<usize, String>,
+    pub assert_exprs: HashMap<usize, String>,
 }
 
 impl Expr {
@@ -68,7 +68,7 @@ impl Expr {
             ready: false,
             complete: false,
             computed: false,
-            assertExprs: HashMap::new(),
+            assert_exprs: HashMap::new(),
         }
     }
 }

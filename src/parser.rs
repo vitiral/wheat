@@ -1,4 +1,5 @@
 use crate::ast::*;
+use crate::types::Error;
 use pest;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
@@ -6,10 +7,9 @@ use pest::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use thiserror::Error;
 
 #[throws]
-pub fn parse(path: Arc<PathBuf>, text: &str) -> File {
+pub fn parse_file(path: Arc<PathBuf>, text: &str) -> File {
     let src = Src {
         path: path.clone(),
         text,
@@ -40,39 +40,6 @@ pub fn parse(path: Arc<PathBuf>, text: &str) -> File {
         path,
         globals,
         functions,
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("syntax error: {0}")]
-    Pest(#[from] pest::error::Error<Rule>),
-}
-
-impl Error {
-    fn parse_with_offset(src: &str, offset: pest::Span, err: pest::error::Error<Rule>) -> Self {
-        use pest::error;
-        match err.location {
-            error::InputLocation::Pos(p) => {
-                let pos = expect!(
-                    pest::Position::new(src, offset.start() + p),
-                    "p={} offset={:?}",
-                    p,
-                    offset
-                );
-                Error::Pest(error::Error::new_from_pos(err.variant, pos))
-            }
-            error::InputLocation::Span((start, end)) => {
-                let span = expect!(
-                    pest::Span::new(src, offset.start() + start, offset.start() + end),
-                    "start={} end={} offset={:?}",
-                    start,
-                    end,
-                    offset
-                );
-                Error::Pest(error::Error::new_from_span(err.variant, span))
-            }
-        }
     }
 }
 
@@ -428,7 +395,7 @@ mod tests {
         use std::path::PathBuf;
         let path = Arc::new(PathBuf::from(path));
         let text = expect!(fs::read_to_string(path.as_ref()));
-        let file = parse(path.clone(), &text)?;
+        let file = parse_file(path.clone(), &text)?;
         println!("### {:?} FILE:\n{:?}", path, file);
         file
     }
