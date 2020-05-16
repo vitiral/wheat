@@ -1,7 +1,7 @@
 
 fn main{} (
   assertExpr!!('''
-  index: 0
+  rev: 0
 
   int: 1
   operator: '.'

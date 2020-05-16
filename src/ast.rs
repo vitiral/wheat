@@ -100,63 +100,6 @@ pub enum Operator {
 #[derive(Debug)]
 pub struct Expand1(pub ExprItem);
 
-#[derive(Debug)]
-pub struct Arbitrary {
-    pub loc: Loc,
-}
-
-#[derive(Debug)]
-pub struct Iden {
-    pub a: String,
-    pub loc: Loc,
-}
-
-#[derive(Debug)]
-pub struct Name {
-    iden: Vec<Iden>,
-}
-
-#[derive(Debug)]
-pub struct Value {
-    pub a: AValue,
-    pub loc: Loc,
-}
-
-#[derive(Debug)]
-pub enum AValue {
-    Char(char),
-    String(String),
-    Integer(u64),
-}
-
-#[derive(Debug)]
-pub enum Declare {
-    Var(DeclareVar),
-    Fn(DeclareFn),
-}
-
-#[derive(Debug)]
-pub struct DeclareFn {
-    pub visibility: HashSet<Visibility>,
-    pub name: String,
-    pub input: Data,
-    pub output: Option<Data>,
-    pub block: Block,
-    pub loc: Loc,
-}
-
-#[derive(Debug)]
-pub struct DeclareVar {
-    pub let_: bool,
-    pub visibility: HashSet<Visibility>,
-    pub ownership: HashSet<Ownership>,
-    pub var: String,
-    pub type_: Option<Type>,
-    pub assign_ownership: HashSet<Ownership>,
-    pub assign: Option<Expr>,
-    pub loc: Loc,
-}
-
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum Visibility {
     Pub,
@@ -192,6 +135,58 @@ impl Ownership {
 }
 
 #[derive(Debug)]
+pub struct Iden {
+    pub a: String,
+    pub loc: Loc,
+}
+
+#[derive(Debug)]
+pub struct Name {
+    iden: Vec<Iden>,
+}
+
+#[derive(Debug)]
+pub struct Value {
+    pub a: AValue,
+    pub loc: Loc,
+}
+
+#[derive(Debug)]
+pub enum AValue {
+    Integer(u64),
+    String(String),
+    Char(char),
+}
+
+#[derive(Debug)]
+pub enum Declare {
+    Var(DeclareVar),
+    Fn(DeclareFn),
+}
+
+#[derive(Debug)]
+pub struct DeclareFn {
+    pub visibility: HashSet<Visibility>,
+    pub name: String,
+    pub input: Data,
+    pub output: Option<Data>,
+    pub block: Block,
+    pub loc: Loc,
+}
+
+#[derive(Debug)]
+pub struct DeclareVar {
+    pub let_: bool,
+    pub visibility: HashSet<Visibility>,
+    pub ownership: HashSet<Ownership>,
+    pub var: String,
+    pub type_: Option<Type>,
+    pub assign_ownership: HashSet<Ownership>,
+    pub assign: Option<Expr>,
+    pub loc: Loc,
+}
+
+#[derive(Debug)]
 pub enum Closed {
     Block(Block),
     Data(Data),
@@ -221,5 +216,7 @@ pub enum AType {
     Literal(String),
 }
 
-// ####################
-// # TESTING
+#[derive(Debug)]
+pub struct Arbitrary {
+    pub loc: Loc,
+}
