@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::types::{CError, Loc};
+use anyhow::{Context, Error};
 use pest;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
@@ -7,8 +8,6 @@ use pest::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use anyhow::{Context, Error};
-
 
 #[throws]
 pub fn parse_file(path: Arc<PathBuf>, text: &str) -> File {
@@ -338,7 +337,9 @@ fn parse_operation(src: &Src, inner: &mut Pairs<Rule>) -> Option<Operation> {
                 Rule::CALL => Operator::Call,
                 p @ _ => unreachable!("{:?}", p),
             };
-            let right = ExprParser::new().arbitrary_context("Note: arbitrary is not allowed with this operator").parse(src, expect!(inner.next()))?;
+            let right = ExprParser::new()
+                .arbitrary_context("Note: arbitrary block not allowed with this operator")
+                .parse(src, expect!(inner.next()))?;
             let right2 = None;
             Operation {
                 operator,
@@ -348,8 +349,8 @@ fn parse_operation(src: &Src, inner: &mut Pairs<Rule>) -> Option<Operation> {
             }
         }
         Rule::expand1 => {
-            let mut inner = pair.into_inner();
             let operator = Operator::Expand1;
+            let mut inner = pair.into_inner();
             let right = ExprParser::new()
                 .allow_arbitrary()
                 .parse(src, expect!(inner.next()))?;
@@ -361,8 +362,36 @@ fn parse_operation(src: &Src, inner: &mut Pairs<Rule>) -> Option<Operation> {
                 loc,
             }
         }
-        // Rule::expand2 => {
-        // }
+        Rule::expand2 => {
+            let operator = Operator::Expand1;
+            let mut inner = pair.into_inner();
+            let right = {
+                let pair = expect!(inner.next());
+                let loc = Loc::new(&src.path, &pair);
+                let left = ExprItemParser::new()
+                    .arbitrary_context(
+                        "Note: arbitrary block not allowed in the first expression of expand2",
+                    )
+                    .parse(src, pair)?;
+
+                Expr::new(ExprData {
+                    left,
+                    operation: None,
+                    loc,
+                })
+            };
+            let right2 = Some(
+                ExprParser::new()
+                    .allow_arbitrary()
+                    .parse(src, expect!(inner.next()))?,
+            );
+            Operation {
+                operator,
+                right,
+                right2,
+                loc,
+            }
+        }
         _ => unreachable!("{}", pair),
     };
     Some(s)
@@ -442,5 +471,10 @@ mod tests {
     #[test]
     fn parse_call_chain() {
         expect!(test_parse("test_data/call_chain.wht"));
+    }
+
+    #[test]
+    fn parse_expand2() {
+        expect!(test_parse("test_data/expand2.wht"));
     }
 }

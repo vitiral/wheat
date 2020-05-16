@@ -1,7 +1,7 @@
-use thiserror::Error;
 use crate::parser::Rule;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CError {

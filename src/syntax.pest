@@ -28,12 +28,11 @@ CALL        = { "$" }
 operator = _{ ACCESS | CALL }
 
 expand1 = { EXPAND1 ~ expr }
-expand2 = { EXPAND2 ~ expr_item ~ expr }
+// Note: arbitrary not actually allowed in first item.
+expand2 = { EXPAND2 ~ (expr_item | arbitrary) ~ expr }
 
 EXPAND1     = _{ "!" }
 EXPAND2     = _{ "!!" }
-
-expand_item = _{ expr_item | arbitrary }
 
 ////////////////
 // Keywords

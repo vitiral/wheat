@@ -1,0 +1,5 @@
+let const NAME [StrSlice] = "world";
+
+fn main{} (
+  println!!{a=NAME}("hello {a}!")
+)
