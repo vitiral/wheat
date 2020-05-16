@@ -453,32 +453,3 @@ fn get_loc<'a>(path: &Arc<PathBuf>, pair: &Pair<'a, Rule>) -> ast::Loc<'a> {
         span: pair.as_span(),
     };
 }
-
-// Throw away
-
-#[derive(Debug)]
-pub struct ParseErr<'a> {
-    msg: String,
-    pair: Pair<'a, Rule>,
-}
-
-impl<'a> ParseErr<'a> {
-    pub fn new(pair: Pair<'a, Rule>, msg: String) -> ParseErr<'a> {
-        ParseErr {
-            msg: msg,
-            pair: pair,
-        }
-    }
-}
-
-pub fn parse<'a>(
-    path: &Arc<PathBuf>,
-    text: &'a str,
-) -> Result<Vec<Pair<'a, Rule>>, pest::error::Error<Rule>> {
-    Ok(LangParser::parse(Rule::file, text)?.collect())
-}
-
-#[throws(ParseErr<'a>)]
-pub fn build_ast<'a>(path: &Arc<PathBuf>, pairs: Vec<Pair<'a, Rule>>) -> ast::File<'a> {
-    panic!()
-}

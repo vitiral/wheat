@@ -40,21 +40,18 @@ fn main() -> Result<(), String> {
     let input = Arc::new(opt.input);
     let text = fs::read_to_string(input.as_ref())
         .map_err(|e| format!("Failed to parse {}: {}", input.display(), e))?;
-    let res = match parser::parse(&input, &text) {
+    let mut file = match parser::File::new(input.clone(), &text) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Failed to parse {}\n{:#?}", input.display(), e);
             return Err(e.to_string());
         }
     };
-    let file = match parser::build_ast(&input, res) {
-        Ok(r) => r,
-        Err(e) => {
+
+    if let Err(e) = file.build() {
             let msg = format!("Failed to build ast {}\n{:#?}", input.display(), e);
             eprintln!("{}", msg);
             return Err(msg);
-        }
-    };
-
+    }
     Ok(())
 }
