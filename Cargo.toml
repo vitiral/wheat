@@ -1,5 +1,5 @@
 [package]
-name = "wak-lang"
+name = "wheat-lang"
 version = "0.1.0"
 authors = ["Rett Berg <rett@google.com>"]
 edition = "2018"

@@ -81,17 +81,17 @@ fn test_parse(path: &str) {
 
 #[test]
 fn parse_hello_world() {
-    test_parse("test_data/hello_world.wak");
+    test_parse("test_data/hello_world.wht");
 }
 
 #[test]
 fn parse_hello_world_expanded() {
-    test_parse("test_data/hello_world_expanded.wak");
+    test_parse("test_data/hello_world_expanded.wht");
 }
 
 #[test]
 fn parse_invalid_arbitarary() {
-    test_parse("test_data/invalid_arbitrary.wak");
+    test_parse("test_data/invalid_arbitrary.wht");
 }
 
 fn parse_declare<'a>(

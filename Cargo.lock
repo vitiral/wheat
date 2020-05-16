@@ -455,7 +455,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "078775d0255232fb988e6fccf26ddc9d1ac274299aaedcedce21c6f72cc533ce"
 
 [[package]]
-name = "wak-lang"
+name = "wast"
+version = "11.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df4d67ba9266f4fcaf2e8a1afadc5e2a959e51aecc07b1ecbdf85a6ddaf08bde"
+dependencies = [
+ "leb128",
+]
+
+[[package]]
+name = "wheat-lang"
 version = "0.1.0"
 dependencies = [
  "env_logger",
@@ -466,15 +475,6 @@ dependencies = [
  "siphasher",
  "structopt",
  "wast",
-]
-
-[[package]]
-name = "wast"
-version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df4d67ba9266f4fcaf2e8a1afadc5e2a959e51aecc07b1ecbdf85a6ddaf08bde"
-dependencies = [
- "leb128",
 ]
 
 [[package]]

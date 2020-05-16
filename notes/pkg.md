@@ -3,7 +3,7 @@ The packaging system will be slightly different than other languages.
 The packaging file will define the pkg layout, it will look something like:
 
 ```
-// pkg.wak
+// pkg.wht
 
 exports {
   myFun = foo,
@@ -17,7 +17,7 @@ to be whatever is convienient.  This is useful if the inner API needs to expand
 as the complexity of the package grows. Growth can happen internally without
 impact on the external API.
 
-On the import side, wak has a different strategy than most other languages:
+On the import side, wheat has a different strategy than most other languages:
 
 - Imports from within the directory of a script are done implicitly, meaning
   all items defined within the current directory are available as if they were
@@ -44,7 +44,7 @@ manager, at which point they are simply available to be used and type-cast as ne
 One final point, and that is on interface methods and injection. Injection is accomplished in the exports:
 
 ```
-// examplePkg.wak
+// examplePkg.wht
 
 gen!![A [+Debug+Eq![A]]]
 fn equalsSelf(a [A]) {
@@ -86,5 +86,5 @@ Constraints:
   the pkg the macro is defined in.
 
 > Implementation detail: the directory path (using the pkg name as the root), not the exports, is always the
-> internal represenetation of the name. So if FooStruct is defined in `mypkg/some/subdir/foo.wak` then it's
+> internal represenetation of the name. So if FooStruct is defined in `mypkg/some/subdir/foo.wht` then it's
 > path will be `mypkg.some.subdir.FooStruct`.

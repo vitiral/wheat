@@ -1,4 +1,4 @@
-> **wac does not in any way work. It is an experimental language still in the design phase**
+> **wheat does not in any way work. It is an experimental language still in the design phase**
 
 The basic design:
 - Compiles directly and plainly to wasm
