@@ -23,11 +23,22 @@ impl Error {
         use pest::error;
         match err.location {
             error::InputLocation::Pos(p) => {
-                let pos = expect!(pest::Position::new(src, offset.start() + p), "p={} offset={:?}", p, offset);
+                let pos = expect!(
+                    pest::Position::new(src, offset.start() + p),
+                    "p={} offset={:?}",
+                    p,
+                    offset
+                );
                 Error::Pest(error::Error::new_from_pos(err.variant, pos))
             }
             error::InputLocation::Span((start, end)) => {
-                let span = expect!(pest::Span::new(src, offset.start() + start, offset.start() + end), "start={} end={} offset={:?}", start, end, offset);
+                let span = expect!(
+                    pest::Span::new(src, offset.start() + start, offset.start() + end),
+                    "start={} end={} offset={:?}",
+                    start,
+                    end,
+                    offset
+                );
                 Error::Pest(error::Error::new_from_span(err.variant, span))
             }
         }
@@ -64,27 +75,26 @@ impl<'a> Ast<'a> {
 
     #[throws]
     pub fn build(&'a mut self) {
-      for pair in self.pairs.drain(..) {
-          if matches!(pair.as_rule(), Rule::EOI) {
-              continue;
-          }
-          assert!(
-              matches!(pair.as_rule(), Rule::declare),
-              "{:?}",
-              pair.as_rule()
-          );
-          let pair = expect!(pair.into_inner().next());
-          match pair.as_rule() {
-              Rule::declare_fn => {
-                  self.functions.push(parse_declare_fn(&self.src, pair)?);
-              }
-              Rule::declare_var => {}
-              Rule::EOI => {}
-              _ => unreachable!("{}", pair),
-          }
-      }
+        for pair in self.pairs.drain(..) {
+            if matches!(pair.as_rule(), Rule::EOI) {
+                continue;
+            }
+            assert!(
+                matches!(pair.as_rule(), Rule::declare),
+                "{:?}",
+                pair.as_rule()
+            );
+            let pair = expect!(pair.into_inner().next());
+            match pair.as_rule() {
+                Rule::declare_fn => {
+                    self.functions.push(parse_declare_fn(&self.src, pair)?);
+                }
+                Rule::declare_var => {}
+                Rule::EOI => {}
+                _ => unreachable!("{}", pair),
+            }
+        }
     }
-
 }
 
 pub struct ExprParser {
@@ -111,7 +121,9 @@ impl ExprParser {
         let left = if self.allow_arbitrary {
             ExprItemParser::new().parse(src, expect!(inner.next()))?
         } else {
-            ExprItemParser::new().allow_arbitrary().parse(src, expect!(inner.next()))?
+            ExprItemParser::new()
+                .allow_arbitrary()
+                .parse(src, expect!(inner.next()))?
         };
         let operation = parse_operation(src, &mut inner);
         ast::Expr::new(ast::ExprData {
@@ -164,7 +176,6 @@ impl ExprItemParser {
 
 // OLD
 
-
 #[cfg(test)]
 fn test_parse(path: &str) -> Result<(), String> {
     use std::fs;
@@ -192,10 +203,7 @@ fn parse_invalid_arbitarary() {
 }
 
 #[throws]
-fn parse_declare<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Declare<'a> {
+fn parse_declare<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Declare<'a> {
     assert!(matches!(pair.as_rule(), Rule::declare));
     let pair = expect!(pair.into_inner().next());
     match pair.as_rule() {
@@ -206,10 +214,7 @@ fn parse_declare<'a>(
 }
 
 #[throws]
-fn parse_declare_fn<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::DeclareFn<'a> {
+fn parse_declare_fn<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::DeclareFn<'a> {
     assert!(matches!(pair.as_rule(), Rule::declare_fn));
     let path = &src.path;
     let loc = get_loc(&src.path, &pair);
@@ -245,10 +250,7 @@ fn parse_declare_fn<'a>(
 }
 
 #[throws]
-fn parse_data<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Data<'a> {
+fn parse_data<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Data<'a> {
     assert!(matches!(pair.as_rule(), Rule::data));
     let loc = get_loc(&src.path, &pair);
     let mut fields = Vec::new();
@@ -259,10 +261,7 @@ fn parse_data<'a>(
 }
 
 #[throws]
-fn parse_declare_var<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::DeclareVar<'a> {
+fn parse_declare_var<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::DeclareVar<'a> {
     panic!();
     // assert!(matches!(pair.as_rule(), Rule::declare_var));
     // let loc = get_loc(&src.path, &pair);
@@ -324,10 +323,7 @@ fn parse_ownership<'a>(
 }
 
 #[throws]
-fn parse_closed<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Closed<'a>{
+fn parse_closed<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Closed<'a> {
     panic!()
     // assert!(matches!(pair.as_rule(), Rule::closed));
     // let pair = pair.into_inner().next().unwrap();
@@ -341,10 +337,7 @@ fn parse_closed<'a>(
 }
 
 #[throws]
-fn parse_block<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Block<'a> {
+fn parse_block<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Block<'a> {
     panic!();
     // assert!(matches!(pair.as_rule(), Rule::block));
     // let mut exprs = Vec::new();
@@ -363,10 +356,7 @@ fn parse_block<'a>(
 }
 
 #[throws]
-fn parse_type<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Type<'a> {
+fn parse_type<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Type<'a> {
     assert!(matches!(pair.as_rule(), Rule::type_));
     let loc = get_loc(&src.path, &pair);
     let type_inner = pair.into_inner().next().unwrap();
@@ -430,10 +420,7 @@ fn parse_operation<'a>(
     // Ok(Some(o))
 }
 
-fn parse_expand1<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) ->ast::Expand1<'a> {
+fn parse_expand1<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Expand1<'a> {
     panic!();
     // assert!(matches!(pair.as_rule(), Rule::expand1));
     // let pair = expect!(pair.into_inner().next());
@@ -441,10 +428,7 @@ fn parse_expand1<'a>(
 }
 
 #[throws]
-fn parse_arbitrary<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Arbitrary<'a> {
+fn parse_arbitrary<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Arbitrary<'a> {
     assert!(matches!(pair.as_rule(), Rule::arbitrary));
     ast::Arbitrary {
         loc: get_loc(&src.path, &pair),
@@ -452,10 +436,7 @@ fn parse_arbitrary<'a>(
 }
 
 #[throws]
-fn parse_iden<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) -> ast::Iden<'a> {
+fn parse_iden<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Iden<'a> {
     assert!(matches!(pair.as_rule(), Rule::iden));
     let loc = get_loc(&src.path, &pair);
     ast::Iden {
@@ -465,10 +446,7 @@ fn parse_iden<'a>(
 }
 
 #[throws]
-fn parse_value<'a>(
-    src: &'a SrcInfo,
-    pair: Pair<'a, Rule>,
-) ->ast::Value<'a> {
+fn parse_value<'a>(src: &'a SrcInfo, pair: Pair<'a, Rule>) -> ast::Value<'a> {
     assert!(matches!(pair.as_rule(), Rule::value));
     let loc = get_loc(&src.path, &pair);
     let pair = pair.into_inner().next().unwrap();
@@ -486,9 +464,6 @@ fn get_loc<'a>(path: &Arc<PathBuf>, pair: &Pair<'a, Rule>) -> ast::Loc<'a> {
         span: pair.as_span(),
     };
 }
-
-
-
 
 // Throw away
 
