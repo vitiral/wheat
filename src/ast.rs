@@ -1,7 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use pest::Span;
-use siphasher::sip128::Hash128;
 use std::path::PathBuf;
 use std::sync::Arc;
 

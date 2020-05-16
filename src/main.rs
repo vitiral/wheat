@@ -40,7 +40,7 @@ fn main() -> Result<(), String> {
     let input = Arc::new(opt.input);
     let text = fs::read_to_string(input.as_ref())
         .map_err(|e| format!("Failed to parse {}: {}", input.display(), e))?;
-    let file = match parser::parse(input.clone(), &text) {
+    let _file = match parser::parse(input.clone(), &text) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Failed to parse {}\n{:#?}", input.display(), e);

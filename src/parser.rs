@@ -115,10 +115,11 @@ impl ExprParser {
         let loc = get_loc(&src.path, &pair);
         let mut inner = pair.into_inner();
         let left = if self.allow_arbitrary {
-            ExprItemParser::new().allow_arbitrary().parse(src, expect!(inner.next()))?
-        } else {
             ExprItemParser::new()
+                .allow_arbitrary()
                 .parse(src, expect!(inner.next()))?
+        } else {
+            ExprItemParser::new().parse(src, expect!(inner.next()))?
         };
         let operation = parse_operation(src, &mut inner)?;
         ast::Expr::new(ast::ExprData {
