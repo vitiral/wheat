@@ -14,3 +14,10 @@ pest_derive = "2.0.0"
 expect_macro = "*"
 siphasher = "0.3"
 
+# Error handling:
+# https://tarquin-the-brave.github.io/blog/posts/collecting-all-the-errors/
+fehler = "1.0"
+anyhow = "1.0"
+beau_collector = "0.2"
+thiserror = "1.0"
+

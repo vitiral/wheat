@@ -6,16 +6,67 @@ use pest::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thiserror::Error;
 
 #[derive(Parser)]
 #[grammar = "syntax.pest"]
 pub struct LangParser;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("syntax error: {0}")]
+    Pest (
+        #[from]
+        pest::error::Error<Rule>,
+    ),
+}
+
+fn pest_err_with_offset(err: pest::error::Error<Rule>, offset: pest::Position) -> pest::error::Error<Rule> {
+    use pest::error::InputLocation;
+    use pest::error::Error;
+    match err.location {
+        InputLocation::Pos(p) => {
+            // Agh, I do need the original text.
+            Error::new_from_pos(err.variant, offset)
+        }
+        InputLocation::Span((start, end)) => {
+            panic!();
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ParseErr<'a> {
     msg: String,
     pair: Pair<'a, Rule>,
 }
+
+pub struct Ast<'a> {
+    path: Arc<PathBuf>,
+    src: &'a str,
+    pairs: Vec<Pair<'a, Rule>>,
+    globals: Vec<ast::DeclareVar<'a>>,
+    functions: Vec<ast::DeclareFn<'a>>,
+}
+
+impl<'a> Ast<'a> {
+    #[throws]
+    pub fn new(
+    path: &Arc<PathBuf>,
+    src: &'a str,
+    ) -> Ast<'a> {
+        let pairs = LangParser::parse(Rule::file, src)?.collect();
+
+        Ast {
+            path: path.clone(),
+            src,
+            pairs,
+            globals: vec![],
+            functions: vec![],
+        }
+    }
+}
+
 
 impl<'a> ParseErr<'a> {
     pub fn new(pair: Pair<'a, Rule>, msg: String) -> ParseErr<'a> {
@@ -33,10 +84,11 @@ pub fn parse<'a>(
     Ok(LangParser::parse(Rule::file, text)?.collect())
 }
 
+#[throws(ParseErr<'a>)]
 pub fn build_ast<'a>(
     path: &Arc<PathBuf>,
     pairs: Vec<Pair<'a, Rule>>,
-) -> Result<ast::File<'a>, ParseErr<'a>> {
+) -> ast::File<'a> {
     let mut globals: Vec<ast::DeclareVar<'a>> = Vec::new();
     let mut functions: Vec<ast::DeclareFn<'a>> = Vec::new();
 
@@ -66,7 +118,7 @@ pub fn build_ast<'a>(
         functions,
     };
     eprintln!("Built ast:\n{:#?}", o);
-    Ok(o)
+    o
 }
 
 #[cfg(test)]
