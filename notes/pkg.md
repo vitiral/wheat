@@ -23,9 +23,9 @@ On the import side, wheat has a different strategy than most other languages:
   all items defined within the current directory are available as if they were
   imported. This allows the programer to move objects between files without
   harm.
-- Items in other directories are always available by using `pkg` to start at
+- Local items in other directories are always available by using `pkg` to start at
   the root. Only directories are used in this path, so if you have a function
-  in a directory named `core` you can access it with `pkg.core.myCoreFn`.
+  in a directory named `core/` you can access it with `pkg.core.myCoreFn`.
   Filenames are ignored by the compiler and are only used for programmer
   organization and convienience.
   - If you wish to access items that your pkg exports, use your pkg name
@@ -38,15 +38,17 @@ On the import side, wheat has a different strategy than most other languages:
   cheese.SWISS`. To import it directly, simply do `alias _ = cheese.SWISS`
   (brings `SWISS` into the current file namespace).
 
-All of this means that there are no `import` or `include` statements. Including dependencies is done by the pkg
-manager, at which point they are simply available to be used and type-cast as needed.
+All of this means that there are no `import` or `include` statements. Including
+dependencies is done by the pkg manager, at which point they are simply
+available to be used and type-cast as needed.
 
-One final point, and that is on interface methods and injection. Injection is accomplished in the exports:
+One final point, and that is on interface methods and injection. Injection is
+accomplished in the exports:
 
 ```
 // examplePkg.wht
 
-gen!![A [+Debug+Eq![A]]]
+gen!![A[+Debug+Eq![A]]]
 fn equalsSelf(a [A]) {
   return a.equal$(a);
 }

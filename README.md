@@ -7,10 +7,8 @@ The basic design:
   but are solved with macros and insertable types.
 - Supports basic integer, float and pointer types, structs, enums and interfaces, 
   with an extensive std library.
-- Memorry is RAII with tracking of ownership. Stack/vs heap not controllable by
-  programmer.
-- Inspired by rust and a [withoutboats blog
-  post](https://boats.gitlab.io/blog/post/notes-on-a-smaller-rust/)
+- Memorry is RAII with tracking of ownership.
+- Inspired by rust and a [withoutboats blog post](https://boats.gitlab.io/blog/post/notes-on-a-smaller-rust/)
 
 # Overview
 
@@ -19,7 +17,7 @@ index, so are essentially tuples. All data structures (structs/enums/function
 inputs/etc) are declared like:
 
 ```
-{arg1 [type1]; arg2 [String] = "default value"}
+{arg1: type1; arg2: String = "default value"}
 ```
 
 A statement-expression executes some behavior and can optionally end in`;`.
@@ -28,12 +26,12 @@ Statements that don't end in `;` can return a value.
 
 For example:
 ```
-let own v [i32] = (
+let own v: i32 = (
   let a = 2;
   let b = 40;
   a + b
 );
-si.print(v);           // function call on system interface, prints "42"
+si.print$v;           // function call on system interface, prints "42"
 si.printf!("v={}", v); // macro call, prints "v=42"
 ```
 
@@ -165,7 +163,7 @@ the compiler has no way to know the programer intended the output to be
 tied to the input.
 
 ```
-lt!!(s [res]) // "s" must outlive all values in "res" (result)
+lt!!(s=res) // "s" must outlive all values in "res" (result)
 fn splitl{s [String]; delimiter [char]}
   -> {left [String]; right [String]}
 (
@@ -249,8 +247,8 @@ Declaring the macro like `std.collect.HashMap!` is covered later.
 
 ```
 // continuing above example
-m.insert{key="foo"; value=42}; // normal function
-assertEq![_]{expected=someMap; result=m}?;
+m.insert${key="foo"; value=42}; // normal function call
+assertEq!{[_]; expected=someMap; result=m}?;
 ```
 
 In the above example we use the `m` value normally by inserting a value into
