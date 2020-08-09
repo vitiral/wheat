@@ -15,7 +15,7 @@ expr = {
   )?
 }
 
-expr_item = { value | closed | declare | iden | arbitrary }
+expr_item = { value | closed | declare | iden | type_ | arbitrary }
 
 ////////////////
 // Operation
@@ -38,7 +38,7 @@ EXPAND2     = _{ "!!" }
 // Keywords
 LET = { "let" }
 VISIBILITY = { "pub" }
-OWNERSHIP = { "const" | "own" | "&" | "excl" }
+OWNERSHIP = { "const" | "own" | "ref" | "excl" }
 END = { ";" }
 
 ///////////////////
@@ -102,7 +102,7 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 // Declaration
 
 declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
-declare_fn = { "fn" ~ VISIBILITY? ~ iden ~ data ~ ("->" ~ data)? ~ block }
+declare_fn = { VISIBILITY? ~ "fn" ~ iden ~ data ~ ("->" ~ data)? ~ block }
 declare_var = { 
   LET ~ VISIBILITY? ~ iden ~ type_? ~ ("=" ~ expr)?
   | iden ~ type_? ~ "=" ~ expr
@@ -111,7 +111,7 @@ declare_var = {
 ////////////////
 // Closed Expressions
 
-closed = { block | data | type_ }
+closed = { block | data }
 
 block = { 
    "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
@@ -119,8 +119,11 @@ block = {
 
 data = { "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" }
 
-type_ = { "[" ~ integer? ~ OWNERSHIP* ~ type_inner ~ "]" }
-type_inner = { (expr ~ type_? ~ ";")* ~ expr ~ type_? ~ ";"?  }
+// TODO: replace type_ with this
+type_ = {  type_closed | type_inner }
+type_closed = { "[" ~ declare_type* ~ type_inner ~ "]" }
+type_inner = { iden ~ ("[" ~ type_inner ~ "]")? }
+declare_type = { iden ~ "=" ~ expr ~ END }
 
 arbitrary = { "(" ~ arbitrary_inner* ~ ")" }
 arbitrary_inner = _{ value | arbitrary | arbitrary_token }

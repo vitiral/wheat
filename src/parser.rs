@@ -391,7 +391,7 @@ fn parse_type(src: &Src, pair: Pair<Rule>) -> Type {
     assert!(matches!(pair.as_rule(), Rule::type_));
     let loc = Loc::new(&src.path, &pair);
     let type_inner = pair.into_inner().next().unwrap();
-    assert!(matches!(type_inner.as_rule(), Rule::type_inner));
+    assert!(matches!(type_inner.as_rule(), Rule::type_inner | Rule::type_closed));
     // remove all whitespace
     let type_str = type_inner
         .as_str()
