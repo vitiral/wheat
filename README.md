@@ -5,8 +5,7 @@ The basic design:
 - Expression based language. Expressions can "return a value"
 - Macro and const-function first language: many constructs (i.e. generics) don't exist
   but are solved with macros and insertable types.
-- Supports basic integer, float and pointer types, structs, enums and interfaces, 
-  with an extensive std library.
+- Supports all basic integer and floating point types along with structs, enums and pointers.
 - Memorry is RAII with tracking of ownership.
 - Inspired by rust and a [withoutboats blog post](https://boats.gitlab.io/blog/post/notes-on-a-smaller-rust/)
 
@@ -26,38 +25,38 @@ Statements that don't end in `;` can return a value.
 
 For example:
 ```
-let own v: i32 = (
+let own v:i32 = (
   let a = 2;
   let b = 40;
   a + b
 );
-si.print$v;           // function call on system interface, prints "42"
+si.print$   // print a string
+  i32ts$ v; // convert i32 to a string
 si.printf!("v={}", v); // macro call, prints "v=42"
 ```
 
-A type expression is always inside `[]`
 ```
-type Id [u32];
+type Id = u32;
 let own id [Id] = 42;
 ```
 
-The following is the function `splitl` which takes a struct
-containg a string and delimiter as input and returns an annonymous struct
-containing the values to the left and right of the first delimiter on the left.
-Please ignore the `own` keyword, it will be discussed in ownership.
+The following is the function `splitl` which takes a struct containg a string
+and delimiter as input and returns an annonymous struct containing the values
+to the left and right of the first delimiter on the left. Please ignore the
+`own` keyword, it will be discussed in ownership.
 
 ```
 fn splitl{own s [String]; delimiter [char]}
-  -> { own left [String]; own right [String]; }
+  -> { left: String; right: String; }
 (
-  for!!({let c = ch let i = index}; s.charsIndex{}) (
+  for!!({let c = ch; let i = index}; s.charsIndex{}) (
     if c == delimter (
-      let own right = s.removeTail(s.len() - i - 1);
+      let right = s.removeTail(s.len() - i - 1);
       s.pop(); // pop delimiter
-      return {left = s; right = right};
+      return new ret {left = s; right = right};
     )
   )
-  return {left = s; right = String.default()};
+  return new ret {left = s; right = String.default()};
 )
 ```
 
@@ -66,12 +65,12 @@ you would write the following
 
 ```
 byindex!
-fn split{own s [String]; delimiter [char]}
+fn split{own s: String; delimiter: char}
   -> byindex!{left [String]; right [String]}
   ( ... )
 
 // Can now call like:
-split{"foo,bar"; ','}
+split${"foo,bar"; ','}
 ```
 
 `byindex!` and `for!!` are macros. Macros with one `!` consume the next
@@ -87,7 +86,7 @@ them an expression. For instance, to implement the Debug and Eq interfaces for
 a struct you might do:
 
 ```
-Debug.impl! Eq.impl!
+Debug! Eq!
 struct Point (
   x: int;
   y: int;
@@ -95,20 +94,19 @@ struct Point (
 ```
 
 In this case, the expressions get consumed bottom-up. So the `struct` expression
-gets sent to `Eq.impl!` which gets passed to `Debug.impl!`. In this case, the
-order doesn't matter, but that might not always be the case.
-
+gets sent to `Eq!` which gets passed to `Debug!`. In this case, the order
+doesn't matter, but that might not always be the case.
 
 # Core Types
 - bool
-- u8, u16, u32, etc
-- i8, i16, i32, etc
+- u8, u16, u32, u64
+- i8, i16, i32, i64
 - usize, isize, ptr
 - f32, f64
 - Void
 
 # Operators
-There are only four operators
+There are currently only four operators
 
 - `.` access operator for accessing items within packages/structs/interfaces/etc.
 - `$` function call operator. Calls the previous expression with the next expression.
@@ -128,32 +126,33 @@ There are a few ways to declare a value:
 
 The following control how the value can be used and when it is freed:
 
-- `[own <type>]` declares an _owned exclusive value_. It can be
+- `own <type>` declares an _owned exclusive value_. It can be
   mutated and will be destroyed at end of scope. It can be cloned 
   or given to other functions as any of the ownership types.
-- `[&excl <type>]` declares an _exlusive reference_. It can be given to other
+- `excl <type>` declares an _exlusive reference_. It can be given to other
   functions as an `excl` or `shared` reference. The lifetime (`lt!`) tracker
   will ensure that it is not used while other functions have access to it.
-- `[& <type>]` declares a _shared reference_. It can be given to other
+- `shared <type>` declares a _shared reference_. It can be given to other
   functions or stored inside collections. It is guaranteed that there is not
   a simultanious exclusive reference by the `lt!` tracker.
-- `[const <type>]` declares an _immutable value_ created at const/static time.
+- `const <type>` declares an _immutable value_ created at const/static time.
   There is also `var [&const <type>]` which is a reference to a constant value.
-  `[const <type>]` will be recreated by the compiler at each point it is used,
-  `[&const <type>]` is an immutable global value in memory. Typically you want
-  to use `[&const <type>]` except for integers and very small structs.
+  `const <type>` will be recreated by the compiler at each point it is used,
+  `ref const <type>` is an immutable global value in memory. Typically you want
+  to use `ref const <type>` except for integers and very small structs.
 - Using `_` for the type causes it to be elided. 
-- An `[own const <type>]` is an owned constant, i.e. an immutable value that 
+- An `own const <type>` is an owned constant, i.e. an immutable value that
   will still be dropped at end of scope and may still have interrior mutability.
-- `[&]` is a lifetime tracker. It is sometimes used by structs to define lifetime 
-  relationships and is not a real value (has no size).
-- `[5 own <type>]` specifies an `array` of memory with 5 values. The number must 
-   appear first and can be a const variable or macro call.
+- `ref` by itself is a lifetime tracker. It is sometimes used by structs to
+  define lifetime relationships and is not a real value (has no size).
+- `[n=5; <own> <type>]` specifies an array of 5 values
+- `[n=?; <own> <type>]` specifies an array of an unknown number of values.
+- `[n=5; <own> [n=2; <own> <type>]]` specifies a 5x2 array of values.
 
-For a struct/enum to be used in a `[const <type>]` context, it must have:
+For a struct/enum to be used in a `const <type>` context, it must have:
 - All of its types and their subtypes have `const` in them 
-- If a subtype is `[own const <type>]` it must have no interrior mutability 
-  or be marked as `constsafe` (only allowed by pkgs with `seclvl = "compiler"`)
+- If a subtype is `own const <type>` it must have no interrior mutability or be
+  marked as `constsafe` (only allowed by pkgs with `seclvl = "compiler"`)
 
 ## Taint analysis and lifetimes
 
@@ -164,22 +163,22 @@ tied to the input.
 
 ```
 lt!!(s=res) // "s" must outlive all values in "res" (result)
-fn splitl{s [String]; delimiter [char]}
-  -> {left [String]; right [String]}
+fn splitl{s: String; delimiter: char}
+  -> {left: ref str; right: ref str}
 (
   for!!({let c = v; let i = index}; s.charsIndex{}) (
     if c == delimter (
-      return {left=s.slice(0, i); right=s.slice(i+1, s.len())};
+      return ret${left=s.slice(0, i); right=s.slice(i+1, s.len())};
     )
   )
-  {left=s; right=""}
+  ret${left=s; right=""}
 )
 ```
 
 Note that `s` is an immutable reference. How might this work?
 ```
 let mut own in = stdin();
-let {left=line1; right=line2} = splitl{s=in; delimter='\n'};
+{let left=line1; let right=line2} = splitl{s=in; delimter='\n'};
 // cannot use `in` mutably since it has a reference to left/right
 if left == "not good" {
   abort(1);
@@ -212,19 +211,18 @@ Values assigned must implement the `toJson` interface.
 
 ```
 attr!!(taint=Vec.of!{
-   {symbol=tar.inp.s, taint=Taint.Outlive.from(tar.res.all!())};
+   {symbol=tar.inp.s, taint=Taint.Outlive.from(tar.res.all!_)};
 })
 ```
 
-
 # Generics, or rather the lack thereof
-The language does not provide generics. Instead types can be specified in
-using `[]` as part of their name and macros can inject new types (including
+The language does not provide generics. Instead types can be specified using
+`[]` as part of their name and macros can inject new types (including
 functions, implementations, etc) into packages.
 
 For an example long type:
 ```
-let v [std.collect.HashMap[std.collect.String;u32]];
+let v: std.collect.HashMap[std.collect.String;u32];
 ```
 
 However, note that normally people do not specify types in this way... and in fact,
@@ -233,22 +231,24 @@ the ones in the standard library. Instead, the type must be _generated_ by a mac
 from within that package, which also  _injects_ it.
 
 ```
-type [String] = [std.collect.String];
-type [HashMap] = [std.collect.HashMap];
+type String: std.collect.String;
+type HashMap: std.collect.HashMap;
 
-let m [HashMap![String; u32]]
+let m: HashMap![String; u32] = HashMap![String; u32].of!{"foo": 42; "bar": 1};
 ```
+
+> To simplify, you may also do something like `type HM[S; 32] = HashMap![String; u32]`
 
 The variant of `HashMap` (which implements the interface
 `std.collect.Map[std.collect.String;u32]`) is then _generated_ on the fly.
-Declaring the macro like `std.collect.HashMap!` is covered later.
+Declaring a macro like `std.collect.HashMap!` is covered later.
 
 "Generic functions" are also generated via a macro:
 
 ```
 // continuing above example
 m.insert${key="foo"; value=42}; // normal function call
-assertEq!{[_]; expected=someMap; result=m}?;
+assertEq!{expected=someMap; result=m}?;
 ```
 
 In the above example we use the `m` value normally by inserting a value into
@@ -256,65 +256,13 @@ it. We then call a generated function for comparing the map with another map.
 The `?` does error handling, which will be covered later.
 
 What functions or types have to be generated? The answer is _any_ function
-which does not take in a concrete struct, enum or virtual interface.
-
-
-## Virtual and Generated Interfaces
-Any type can be converted to have a virtual interface to explicit interfaces.
-The value is then stored in memory as a "fatpointer" to the value's data and to
-the vtable for its methods.
-
-Virtual interface types are declared with `[<ownership> virt+<interfaces>]`. Essentially,
-`virt` replaces the _concrete type_:
-
-```
-type AssertResult [Result![Void,String]];
-
-fn assertEqU32{expected [shared virt+Debug+Eq![u32]], result [shared virt+Debug+Into![u32]]}
-  -> AssertResult (
-  if expected == result.into![u32]{} (
-    AssertResult.Ok{0=Void};
-  ) else (
-    AssertResult.Err{0=format!("expected != result; expected={}; result={}", expected, result)};
-  )
-)
-```
-
-Regular functions can accept and return values which have virtual interfaces,
-and their code doesn't have to be generated for every possible variant.
-Functions which want to use non-virtual interfaces must be generated and
-inserted into their respective package. The eaiser way to do this is to be
-declared with the `gen!` macro, which will consume the `[<ownership> _+A+B]` type parameters
-and convert the input values appropriately when called as a macro.
-
-```
-gen!![A [+Debug+Eq![A]], B [+Into![A]] // Generic over A, which must implement Debug
-fn assertEq{
-    expected: [shared A];
-    result: [shared B];
-  } -> AssertResult (
-  let result = result.into![A];
-  if expected.=result (
-    AssertResult.Ok!Void
-  ) else (
-    AssertResult.Err! format!("expected != result; expected={}; result={}", expected, result)
-  )
-)
-
-// Can then be called like
-assertEq!![A=u32]{expected=32, result=42}?;
-
-// Or telling it to infer the types.
-assertEq!![_]{expected=32, result=42}?;
-```
-
+which does not take in or return a concrete struct, enum or primitive type.
 
 # Reserved keywords:
 - types: struct, enum, type
-- ownership: let, const, mut, own
-- functions: fn, inp, res
-- structs: Self
-- impl: self
+- ownership: let, const, mut, own, ref
+- functions: fn, inp, res, self
+- types: Self
 - macros: lt!!, gen!!, tar (target)
 
 # Inline wasm
@@ -360,7 +308,8 @@ There is also the following:
 https://webassembly.github.io/spec/core/text/values.html#text-id
 
 The text-id spec above is very permissive. It allows most ascii characters
-(including `!$%*+./:<>=@` etc). It does NOT allow `()[]`.
+(including `!$%*+./:<>=@` etc). However, it does NOT allow `()[]`.
 
-Type names must use the characters `\w_.[]` Note that `<>` are not permitted.
-Therefore, when converting type names `[]` will be converted to `<>`
+Type names must use the characters `\w_.[]` Note that `<>` are not permitted in
+wheat types. Therefore, when converting wheat type names to wat, `[]` will be
+converted to `<>`
