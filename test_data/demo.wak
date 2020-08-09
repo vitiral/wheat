@@ -99,10 +99,10 @@
 // )
 // 
 
-let const HELLO [StrSlice] = "Hello world!";
+let const HELLO : StrSlice = "Hello world!";
 
 fn main{} (
-  fdWriteString {
+  fdWriteString$ {
     fd = 1; // stdout
     str = HELLO;
   };

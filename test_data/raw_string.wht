@@ -1,7 +1,7 @@
-let one [StrSlice] = '''single line basic''';
-let multi [StrSlice] = '''
+let one: StrSlice = '''single line basic''';
+let multi: StrSlice = '''
 multi
   line
    basic
 ''';
-let five [StrSlice] = '''''This has five ' in its guard''''';
+let five: StrSlice = '''''This has five ' in its guard''''';

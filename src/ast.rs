@@ -197,6 +197,7 @@ pub enum Closed {
 pub struct Block {
     pub exprs: Vec<Expr>,
     pub end: bool,
+    pub loc: Loc,
 }
 
 #[derive(Debug)]
@@ -207,13 +208,20 @@ pub struct Data {
 
 #[derive(Debug)]
 pub struct Type {
-    pub a: AType,
+    pub iden: Iden,
+    pub block: Option<TypeBlock>,
     pub loc: Loc,
 }
 
 #[derive(Debug)]
-pub enum AType {
-    Literal(String),
+pub struct TypeBlock {
+    // Expressions which must be expanded
+    pub expand: Vec<Expr>,
+    pub loc: Loc,
+
+    // TODO: Expand into:
+    // pub declare_var: Vec<DeclareVar>,
+    // pub type_: Vec<Type>,
 }
 
 #[derive(Debug)]

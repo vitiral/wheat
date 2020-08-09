@@ -1,4 +1,4 @@
-let NAME [StrSlice] = "world";
+let NAME: StrSlice = "world";
 
 fn main{} (
   println!{f="hello {}!"; _0=NAME};

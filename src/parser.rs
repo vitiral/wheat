@@ -360,8 +360,9 @@ fn parse_closed(src: &Src, pair: Pair<Rule>) -> Closed {
 #[throws]
 fn parse_block(src: &Src, pair: Pair<Rule>) -> Block {
     assert!(matches!(pair.as_rule(), Rule::block));
+    let loc = Loc::new(&src.path, &pair);
     let mut exprs = Vec::new();
-    let mut end = false;
+    let mut end = false; // find if block ends with ";"
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::expr => {
@@ -372,7 +373,7 @@ fn parse_block(src: &Src, pair: Pair<Rule>) -> Block {
             _ => unreachable!("{:?}: {}", pair.as_rule(), pair),
         }
     }
-    Block { exprs, end }
+    Block { exprs, end, loc }
 }
 
 #[throws]
@@ -390,18 +391,30 @@ fn parse_data(src: &Src, pair: Pair<Rule>) -> Data {
 fn parse_type(src: &Src, pair: Pair<Rule>) -> Type {
     assert!(matches!(pair.as_rule(), Rule::type_));
     let loc = Loc::new(&src.path, &pair);
-    let type_inner = pair.into_inner().next().unwrap();
-    assert!(matches!(type_inner.as_rule(), Rule::type_inner | Rule::type_closed));
-    // remove all whitespace
-    let type_str = type_inner
-        .as_str()
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect();
-    Type {
-        a: AType::Literal(type_str),
-        loc,
+    let mut inner = pair.into_inner();
+    let iden = parse_iden(src, expect!(inner.next()))?;
+    let block: Option<TypeBlock> = match inner.next() {
+        Some(p) => Some(parse_type_block(src, p)?),
+        None => None,
+    };
+    Type { iden, block, loc }
+}
+
+#[throws]
+fn parse_type_block(src: &Src, pair: Pair<Rule>) -> TypeBlock {
+    assert!(matches!(pair.as_rule(), Rule::type_block));
+    let loc = Loc::new(&src.path, &pair);
+    let mut expand = Vec::new();
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::expr => {
+                expand.push(ExprParser::new().parse(src, pair)?);
+            }
+            Rule::END => {},
+            _ => unreachable!("{:?}: {}", pair.as_rule(), pair),
+        }
     }
+    TypeBlock { expand, loc }
 }
 
 #[throws]
@@ -445,6 +458,11 @@ mod tests {
     #[test]
     fn parse_hello_world_expanded() {
         expect!(test_parse("test_data/hello_world_expanded.wht"));
+    }
+
+    #[test]
+    fn parse_arbitrary() {
+        expect!(test_parse("test_data/arbitrary.wht"));
     }
 
     #[test]

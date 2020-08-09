@@ -1,4 +1,4 @@
-let HELLO [StrSlice] = "Hello world!";
+let HELLO: StrSlice = "Hello world!";
 
 fn main{} (
   fdWriteString $ {

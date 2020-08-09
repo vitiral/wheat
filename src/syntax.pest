@@ -7,6 +7,9 @@ file = _{
   ~ EOI
 }
 
+////////////////
+// Expression
+
 expr = { 
   expr_item ~ (
     operation
@@ -24,31 +27,33 @@ operation = { operator ~ expr }
 
 ACCESS      = { "." }
 CALL        = { "$" }
-
-operator = _{ ACCESS | CALL }
-
-expand1 = { EXPAND1 ~ expr }
-// Note: arbitrary not actually allowed in first item.
-expand2 = { EXPAND2 ~ (expr_item | arbitrary) ~ expr }
-
 EXPAND1     = _{ "!" }
 EXPAND2     = _{ "!!" }
 
+operator = _{ ACCESS | CALL }
+expand1 = { EXPAND1 ~ expr }
+// Note: arbitrary not actually allowed in first item.
+expand2 = { EXPAND2 ~ expr_item ~ expr }
+
 ////////////////
 // Keywords
+
 LET = { "let" }
 VISIBILITY = { "pub" }
 OWNERSHIP = { "const" | "own" | "ref" | "excl" }
 END = { ";" }
+INFER = { "_" }
 
 ///////////////////
 // Identifiers
+
 iden = @{ (!(ASCII_DIGIT) ~ iden_char) ~ iden_char* }
 iden_char = @{ "_" | ASCII_ALPHANUMERIC }
 
 ////////////////
 // Value Literals
-value = { bool | float | integer | raw_string | string | char }
+
+value = { INFER | bool | float | integer | raw_string | string | char }
 
 bool = { "true" | "false" }
 
@@ -104,26 +109,34 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
 declare_fn = { VISIBILITY? ~ "fn" ~ iden ~ data ~ ("->" ~ data)? ~ block }
 declare_var = { 
-  LET ~ VISIBILITY? ~ iden ~ type_? ~ ("=" ~ expr)?
-  | iden ~ type_? ~ "=" ~ expr
+  LET ~ iden ~ (":" ~ expr)? ~ ("=" ~ expr)?
+  | iden ~ ( ":" ~ expr)? ~ "=" ~ expr
 }
+
+////////////////
+// Type
+
+type_ = { iden ~ type_block? }
 
 ////////////////
 // Closed Expressions
 
-closed = { block | data }
+closed = { block | type_block | data }
 
 block = { 
-   "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
+    "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
 }
 
-data = { "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" }
+// Note: has syntactic restrictions:
+// - Only simple declare, i.e. A=B or A=B!() etc
+// - Else only iden, type_ or expansions (to type_ or iden) allowed
+type_block = { 
+    "[" ~ (expr ~ END)* ~ (expr ~ END?)? ~ "]" 
+}
 
-// TODO: replace type_ with this
-type_ = {  type_closed | type_inner }
-type_closed = { "[" ~ declare_type* ~ type_inner ~ "]" }
-type_inner = { iden ~ ("[" ~ type_inner ~ "]")? }
-declare_type = { iden ~ "=" ~ expr ~ END }
+data = { 
+    "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" 
+}
 
 arbitrary = { "(" ~ arbitrary_inner* ~ ")" }
 arbitrary_inner = _{ value | arbitrary | arbitrary_token }

@@ -17,8 +17,9 @@ fn main{} (
         right:
           int: 5
   ''')
-
-  1
-    .addU32$ 4
-    .addU32$ 5;
+  (
+    1
+      .addU32$ 4
+      .addU32$ 5;
+  )
 );
