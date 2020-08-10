@@ -138,9 +138,7 @@ data = {
     "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" 
 }
 
-arbitrary = { "(" ~ arbitrary_inner* ~ ")" }
+arbitrary = { "(#" ~ arbitrary_inner* ~ "#)" }
 arbitrary_inner = _{ value | arbitrary | arbitrary_token }
-arbitrary_token = @{ 
-  !("(" | ")") ~ ANY
-}
+arbitrary_token = @{ !("(#" | "#)") ~ ANY }
 
