@@ -75,7 +75,7 @@ pub enum ExprItem {
     Declare(Box<Declare>),
     Value(Value),
     Closed(Closed),
-    Iden(Iden),
+    Type(Type),
     Arbitrary(Arbitrary),
 
     // Compressions
@@ -156,21 +156,40 @@ pub enum AValue {
     Integer(u64),
     String(String),
     Char(char),
+    Bool(bool),
 }
 
 #[derive(Debug)]
 pub enum Declare {
-    Var(DeclareVar),
     Fn(DeclareFn),
+    Struct(DeclareStruct),
+    Enum(DeclareEnum),
+    Var(DeclareVar),
 }
 
 #[derive(Debug)]
 pub struct DeclareFn {
     pub visibility: HashSet<Visibility>,
-    pub name: String,
+    pub name: Type,
     pub input: Data,
     pub output: Option<Data>,
     pub block: Block,
+    pub loc: Loc,
+}
+
+#[derive(Debug)]
+pub struct DeclareStruct {
+    pub name: Type,
+    pub visibility: HashSet<Visibility>,
+    pub data: Data,
+    pub loc: Loc,
+}
+
+#[derive(Debug)]
+pub struct DeclareEnum {
+    pub name: Type,
+    pub visibility: HashSet<Visibility>,
+    pub data: Data,
     pub loc: Loc,
 }
 

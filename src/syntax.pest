@@ -18,7 +18,7 @@ expr = {
   )?
 }
 
-expr_item = { value | closed | declare | iden | type_ | arbitrary }
+expr_item = { value | closed | declare | type_ | arbitrary }
 
 ////////////////
 // Operation
@@ -106,11 +106,26 @@ DIGIT_HEX = @{ASCII_HEX_DIGIT | "_"}
 ////////////////
 // Declaration
 
-declare = { declare_fn /*| declare_struct | declare_interface | declare_impl*/ | declare_var }
-declare_fn = { VISIBILITY? ~ "fn" ~ iden ~ data ~ ("->" ~ data)? ~ block }
+declare = {
+  declare_alias
+  | declare_struct
+  | declare_enum
+  | declare_fn
+  | declare_var
+}
+declare_alias = {
+  "alias" ~ type_ ~ ":" ~ expr
+}
+declare_fn = { VISIBILITY? ~ "fn" ~ type_ ~ data ~ ("->" ~ data)? ~ block }
+declare_struct = { VISIBILITY? ~ "struct" ~ type_ ~ data }
+declare_enum = { VISIBILITY? ~ "enum" ~ type_ ~ data }
+
 declare_var = { 
   LET ~ iden ~ (":" ~ expr)? ~ ("=" ~ expr)?
   | iden ~ ( ":" ~ expr)? ~ "=" ~ expr
+
+  // struct declarations
+  | VISIBILITY? ~ iden ~ ":" ~ expr ~ ("=" ~ expr)?
 }
 
 ////////////////
@@ -138,7 +153,7 @@ data = {
     "{" ~ (declare_var  ~ ";")* ~ (declare_var ~ ";"?)? ~ "}" 
 }
 
-arbitrary = { "(#" ~ arbitrary_inner* ~ "#)" }
+arbitrary = { "#(" ~ arbitrary_inner* ~ ")#" }
 arbitrary_inner = _{ value | arbitrary | arbitrary_token }
-arbitrary_token = @{ !("(#" | "#)") ~ ANY }
+arbitrary_token = @{ !("#(" | ")#") ~ ANY }
 

@@ -36,8 +36,8 @@ si.printf!("v={}", v); // macro call, prints "v=42"
 ```
 
 ```
-type Id = u32;
-let own id [Id] = 42;
+alias Id = u32;
+let own id: Id = 42;
 ```
 
 The following is the function `splitl` which takes a struct containg a string

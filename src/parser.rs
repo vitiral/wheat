@@ -114,7 +114,7 @@ impl ExprItemParser {
             Rule::declare => ExprItem::Declare(Box::new(parse_declare(src, pair)?)),
             Rule::value => ExprItem::Value(parse_value(src, pair)?),
             Rule::closed => ExprItem::Closed(parse_closed(src, pair)?),
-            Rule::iden => ExprItem::Iden(parse_iden(src, pair)?),
+            Rule::type_ => ExprItem::Type(parse_type(src, pair)?),
             Rule::arbitrary => {
                 if self.allow_arbitrary {
                     ExprItem::Arbitrary(parse_arbitrary(src, pair)?)
@@ -242,6 +242,7 @@ fn parse_value(src: &Src, pair: Pair<Rule>) -> Value {
         // FIXME: I think this has to parse it with escapes?
         Rule::char => AValue::Char(expect!(pair.as_str().chars().next())),
         Rule::integer => AValue::Integer(expect!(pair.as_str().parse::<u64>())),
+        Rule::bool => AValue::Bool(expect!(pair.as_str().parse::<bool>())),
         _ => panic!("{:?}: {}", pair.as_rule(), pair),
     };
     Value { a, loc }
@@ -252,8 +253,10 @@ fn parse_declare(src: &Src, pair: Pair<Rule>) -> Declare {
     assert!(matches!(pair.as_rule(), Rule::declare));
     let pair = expect!(pair.into_inner().next());
     match pair.as_rule() {
-        Rule::declare_var => Declare::Var(parse_declare_var(src, pair)?),
         Rule::declare_fn => Declare::Fn(parse_declare_fn(src, pair)?),
+        Rule::declare_struct => Declare::Struct(parse_declare_struct(src, pair)?),
+        Rule::declare_enum => Declare::Enum(parse_declare_enum(src, pair)?),
+        Rule::declare_var => Declare::Var(parse_declare_var(src, pair)?),
         _ => unimplemented!("{:?}: {}", pair.as_rule(), pair),
     }
 }
@@ -271,7 +274,7 @@ fn parse_declare_fn(src: &Src, pair: Pair<Rule>) -> DeclareFn {
         t = inner.next().unwrap();
     }
 
-    let iden = t.as_str();
+    let name = parse_type(src, t)?;
     let input = parse_data(src, inner.next().unwrap())?;
 
     t = inner.next().unwrap();
@@ -285,12 +288,48 @@ fn parse_declare_fn(src: &Src, pair: Pair<Rule>) -> DeclareFn {
 
     DeclareFn {
         visibility,
-        name: iden.to_string(),
+        name,
         input,
         output,
         block: parse_block(src, t)?,
         loc,
     }
+}
+
+#[throws]
+fn parse_declare_struct(src: &Src, pair: Pair<Rule>) -> DeclareStruct {
+    assert!(matches!(pair.as_rule(), Rule::declare_struct));
+    let loc = Loc::new(&src.path, &pair);
+    let mut visibility: HashSet<Visibility> = HashSet::new();
+    let mut inner = pair.into_inner();
+    let mut t = expect!(inner.next());
+
+    if matches!(t.as_rule(), Rule::VISIBILITY) {
+        visibility.insert(Visibility::new(t.as_str()));
+        t = inner.next().unwrap();
+    }
+
+    let name = parse_type(src, t)?;
+    let data = parse_data(src, inner.next().unwrap())?;
+    DeclareStruct { name, visibility, data, loc }
+}
+
+#[throws]
+fn parse_declare_enum(src: &Src, pair: Pair<Rule>) -> DeclareEnum {
+    assert!(matches!(pair.as_rule(), Rule::declare_enum));
+    let loc = Loc::new(&src.path, &pair);
+    let mut visibility: HashSet<Visibility> = HashSet::new();
+    let mut inner = pair.into_inner();
+    let mut t = expect!(inner.next());
+
+    if matches!(t.as_rule(), Rule::VISIBILITY) {
+        visibility.insert(Visibility::new(t.as_str()));
+        t = inner.next().unwrap();
+    }
+
+    let name = parse_type(src, t)?;
+    let data = parse_data(src, inner.next().unwrap())?;
+    DeclareEnum { name, visibility, data, loc }
 }
 
 #[throws]
@@ -483,5 +522,15 @@ mod tests {
     #[test]
     fn parse_raw_string() {
         expect!(test_parse("test_data/raw_string.wht"));
+    }
+
+    #[test]
+    fn parse_struct() {
+        expect!(test_parse("test_data/struct.wht"));
+    }
+
+    #[test]
+    fn parse_enum() {
+        expect!(test_parse("test_data/enum.wht"));
     }
 }
