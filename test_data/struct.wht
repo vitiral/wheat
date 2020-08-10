@@ -1,0 +1,5 @@
+
+struct MyType[Sub; Types] {
+    a: u8 = 0;
+    b: SomeType;
+};

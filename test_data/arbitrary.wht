@@ -1,0 +1,20 @@
+
+fn main{} (
+  something ! #( this is #( arbitrary )# and "fine )#" )#
+
+  // Alternative syntax:
+  // something! (* this is arbitrary and fine *) // okay
+  // something! (% this is arbitrary and fine %) // okay
+  // something! (/ this is arbitrary and fine /) // okay
+  // something! (. this is arbitrary and fine .) // not future proof
+  // something! (= this is arbitrary and fine =) // not future proof
+  // something! ([ this is arbitrary and fine ]) // ugly, not future-proof
+  // something! (< this is arbitrary and fine >) // ugly
+  // something! << this is arbitrary and fine >> // ugly, looks like pipes
+  // something! ($ this is arbitrary and fine $) // $ too common
+  // something! (! this is arbitrary and fine !) // ! too common
+  // something! (/ this is arbitrary and fine \) // too complicated
+  // something! (\ this is arbitrary and fine /) // too complicated
+  // something! (  this is arbitrary and fine  ) // not obvious
+  // something! (( this is arbitrary and fine )) // not obvious
+);

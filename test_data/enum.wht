@@ -1,0 +1,11 @@
+
+enum MyEnum[Sub; Type] {
+  // A: struct _ { x: u32; y: u32 };
+  B: bool;
+};
+
+fn main{} (
+  // let a = MyEnum[Sub; Type]$ {A = {x=42; y=32}};
+  let b = MyEnum[Sub; Type]$ {B = false};
+  println!{f="a={} b={}"; _0=a; _1=b};
+);
