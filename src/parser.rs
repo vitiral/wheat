@@ -239,11 +239,14 @@ fn parse_value(src: &Src, pair: Pair<Rule>) -> Value {
     let a = match pair.as_rule() {
         Rule::string => AValue::String(pair.as_str().to_string()),
         Rule::raw_string => AValue::String(pair.as_str().to_string()),
-        // FIXME: I think this has to parse it with escapes?
-        Rule::char => AValue::Char(expect!(pair.as_str().chars().next())),
+        // FIXME: doesn't handle escaped chars
+        Rule::char => AValue::Char(expect!(expect!(pair.into_inner().next())
+            .as_str()
+            .parse::<char>())),
+        // FIXME: doesn't handle underscores/hex/octal/binary
         Rule::integer => AValue::Integer(expect!(pair.as_str().parse::<u64>())),
         Rule::bool => AValue::Bool(expect!(pair.as_str().parse::<bool>())),
-        _ => panic!("{:?}: {}", pair.as_rule(), pair),
+        _ => panic!("Rule[{:?}] Pair[{:#?}]", pair.as_rule(), pair),
     };
     Value { a, loc }
 }
@@ -311,7 +314,12 @@ fn parse_declare_struct(src: &Src, pair: Pair<Rule>) -> DeclareStruct {
 
     let name = parse_type(src, t)?;
     let data = parse_data(src, inner.next().unwrap())?;
-    DeclareStruct { name, visibility, data, loc }
+    DeclareStruct {
+        name,
+        visibility,
+        data,
+        loc,
+    }
 }
 
 #[throws]
@@ -329,7 +337,12 @@ fn parse_declare_enum(src: &Src, pair: Pair<Rule>) -> DeclareEnum {
 
     let name = parse_type(src, t)?;
     let data = parse_data(src, inner.next().unwrap())?;
-    DeclareEnum { name, visibility, data, loc }
+    DeclareEnum {
+        name,
+        visibility,
+        data,
+        loc,
+    }
 }
 
 #[throws]
@@ -449,7 +462,7 @@ fn parse_type_block(src: &Src, pair: Pair<Rule>) -> TypeBlock {
             Rule::expr => {
                 expand.push(ExprParser::new().parse(src, pair)?);
             }
-            Rule::END => {},
+            Rule::END => {}
             _ => unreachable!("{:?}: {}", pair.as_rule(), pair),
         }
     }
@@ -532,5 +545,10 @@ mod tests {
     #[test]
     fn parse_enum() {
         expect!(test_parse("test_data/enum.wht"));
+    }
+
+    #[test]
+    fn parse_value() {
+        expect!(test_parse("test_data/value.wht"));
     }
 }

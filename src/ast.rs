@@ -237,7 +237,6 @@ pub struct TypeBlock {
     // Expressions which must be expanded
     pub expand: Vec<Expr>,
     pub loc: Loc,
-
     // TODO: Expand into:
     // pub declare_var: Vec<DeclareVar>,
     // pub type_: Vec<Type>,

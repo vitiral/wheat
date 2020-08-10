@@ -1,0 +1,10 @@
+fn main{} (
+  asserteq!{r=true; e=true};
+  asserteq!{r=false; e=false};
+  asserteq!{r=0; e=0};
+  asserteq!{r=1; e=1};
+  // asserteq!{r=1_000_000; e=1_000_000};
+  // asserteq!{r=0x16; e=22};
+  asserteq!{r='c'; e='c'};
+  // asserteq!{r='\n'; e='\n'};
+);
