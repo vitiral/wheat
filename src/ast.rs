@@ -75,11 +75,13 @@ pub enum ExprItem {
     Declare(Box<Declare>),
     Value(Value),
     Closed(Closed),
+    Infer,
     Type(Type),
     Arbitrary(Arbitrary),
 
     // Compressions
-    Name(Name), // Vec of idens with access operations.
+    Name(Name),
+    Computed(Computed),
 }
 
 #[derive(Debug)]
@@ -143,6 +145,11 @@ pub struct Iden {
 #[derive(Debug)]
 pub struct Name {
     iden: Vec<Iden>,
+}
+
+#[derive(Debug)]
+/// Computed webassembly
+pub struct Computed {
 }
 
 #[derive(Debug)]

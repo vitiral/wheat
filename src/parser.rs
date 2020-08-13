@@ -114,6 +114,7 @@ impl ExprItemParser {
             Rule::declare => ExprItem::Declare(Box::new(parse_declare(src, pair)?)),
             Rule::value => ExprItem::Value(parse_value(src, pair)?),
             Rule::closed => ExprItem::Closed(parse_closed(src, pair)?),
+            Rule::INFER => ExprItem::Infer,
             Rule::type_ => ExprItem::Type(parse_type(src, pair)?),
             Rule::arbitrary => {
                 if self.allow_arbitrary {

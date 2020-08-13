@@ -1,6 +1,3 @@
-// I wrote this out all in one go. It does NOT work,
-// but demonstrates where I'm trying to go with the syntax.
-
 WHITESPACE = _{ " " | "\t" | "\n" | "\r\n" }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }
 

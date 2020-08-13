@@ -18,7 +18,7 @@ expr = {
   )?
 }
 
-expr_item = { value | closed | declare | type_ | arbitrary }
+expr_item = { value | closed | declare | INFER | type_ | arbitrary }
 
 ////////////////
 // Operation
@@ -53,7 +53,7 @@ iden_char = @{ "_" | ASCII_ALPHANUMERIC }
 ////////////////
 // Value Literals
 
-value = { INFER | bool | float | integer | raw_string | string | char }
+value = { bool | float | integer | raw_string | string | char }
 
 bool = { "true" | "false" }
 

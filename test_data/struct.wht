@@ -1,5 +1,10 @@
 
-struct MyType[Sub; Types] {
+struct MyType[Sub; Type] {
     a: u8 = 0;
     b: SomeType;
 };
+
+fn main{} (
+  let _a = MyType[Sub; Type]$ {a=2; b=SomeType.new$ _};
+  let b = MyType[Sub; Type]$ {b=SomeType.new$ {c=2}};
+);

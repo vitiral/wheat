@@ -17,6 +17,7 @@ mod ast;
 mod parser;
 mod reduce;
 mod types;
+mod sexpr;
 
 use std::fs;
 use std::path::PathBuf;
