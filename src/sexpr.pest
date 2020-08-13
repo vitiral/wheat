@@ -7,13 +7,19 @@ file = _{
   ~ EOI
 }
 
-expr = { comment | sexpr | atom }
+expr = { iden | comment | sexpr }
 
 sexpr = { "(" ~ expr* ~ ")" }
 
 atom = { string | iden }
 
-iden = { (!(" " | "(" | ")" | "\n") ~ ANY)* }
+iden = { iden_char+ }
+
+iden_char = {
+  ASCII_ALPHANUMERIC | "!"  |  "#"  |  "$"  |  "%"
+  | "&" | "′" | "∗" | "+" | "−" | "." | "/" | ":" | "<" | "=" |
+  ">" | "?" | "@" | "∖" | "^" | "_" | "`" | "|" | "~"
+}
 
 string = ${
   "\"" ~ string_inner ~ "\""
@@ -24,7 +30,7 @@ string_inner = @{ string_char* }
 string_char = {
   !("\"" | "\\") ~ ANY
   | "\\" ~ ("\\" | "\"" | "b" | "f" | "n" | "r" | "t")
-  | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+  // | "\\" ~ ("u" ~ ACII_HEX_DIGIT{4})
 }
 
 comment = { line_comment | block_comment }

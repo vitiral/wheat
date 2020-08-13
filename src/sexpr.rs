@@ -1,14 +1,17 @@
 use pest;
+use anyhow::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 
 #[throws]
 pub fn parse(text: &str) -> S {
-    let exprs: Vec<_> = LangParser::parse(Rule::file, src.text)?
+    let exprs: Vec<_> = LangParser::parse(Rule::file, text)?
         .filter(|pair| !matches!(pair.as_rule(), Rule::EOI))
         .map(parse_s)
         .collect();
+
+    panic!();
 }
 
 fn parse_expr(pair: Pair<Rule>) -> S {
@@ -20,9 +23,12 @@ fn parse_expr(pair: Pair<Rule>) -> S {
             Rule::atom => S::Atom(pair.as_str().to_string()),
             Rule::sexpr => S::List(parse_s(pair)),
             Rule::comment => S::Comment(parse_comment(pair)),
+            _ => unreachable!("{:?}", pair.as_rule()),
         };
-        exprs.put(e);
+        exprs.push(e);
     }
+
+    S::List(exprs)
 }
 
 fn parse_s(pair: Pair<Rule>) -> Vec<S> {
