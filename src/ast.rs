@@ -144,14 +144,11 @@ pub struct Iden {
 }
 
 #[derive(Debug, Clone)]
-pub struct Name {
-    iden: Vec<Iden>,
-}
+pub struct Name(pub Vec<Type>);
 
 #[derive(Debug, Clone)]
 /// Computed webassembly
-pub struct Computed {
-}
+pub struct Computed {}
 
 #[derive(Debug, Clone)]
 pub struct Value {

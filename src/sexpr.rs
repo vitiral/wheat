@@ -1,5 +1,5 @@
-use pest;
 use anyhow::Error;
+use pest;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
@@ -33,17 +33,13 @@ fn parse_expr(pair: Pair<Rule>) -> S {
 
 fn parse_s(pair: Pair<Rule>) -> Vec<S> {
     assert!(matches!(pair.as_rule(), Rule::sexpr), "{}", pair);
-    pair
-        .into_inner()
-        .map(parse_expr)
-        .collect()
+    pair.into_inner().map(parse_expr).collect()
 }
 
 fn parse_comment(pair: Pair<Rule>) -> String {
     assert!(matches!(pair.as_rule(), Rule::comment), "{}", pair);
     expect!(pair.into_inner().next()).as_str().to_string()
 }
-
 
 #[derive(Parser)]
 #[grammar = "sexpr.pest"]
@@ -85,14 +81,14 @@ impl<'a> Formatter<'a> {
                     self.fmt(s)?;
                 }
                 self.end_paren()?;
-            },
-            S::Comment(v) =>{
+            }
+            S::Comment(v) => {
                 self.start_line()?;
                 for l in v.lines() {
                     self.w.write_all(l.as_bytes())?;
                     self.start_line()?;
                 }
-            },
+            }
         }
     }
     #[throws(std::io::Error)]
@@ -119,6 +115,4 @@ impl<'a> Formatter<'a> {
             self.w.write_all(self.indent_value.as_bytes())?;
         }
     }
-
 }
-
