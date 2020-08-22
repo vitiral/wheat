@@ -13,13 +13,7 @@ sexpr = { "(" ~ expr* ~ ")" }
 
 atom = { string | iden }
 
-iden = { (!("(" | ")" | "//" ) ~ ANY)+ }
-
-iden_char = {
-  ASCII_ALPHANUMERIC | "!"  |  "#"  |  "$"  |  "%"
-  | "&" | "′" | "∗" | "+" | "−" | "." | "/" | ":" | "<" | "=" |
-  ">" | "?" | "@" | "∖" | "^" | "_" | "`" | "|" | "~"
-}
+iden = { (!(WHITE_SPACE | "(" | ")" | "//" ) ~ ANY)+ }
 
 string = ${
   "\"" ~ string_inner ~ "\""

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct File {
     pub path: Arc<PathBuf>,
     pub exprs: Vec<Expr>,
@@ -20,7 +20,7 @@ pub struct File {
 /// An expression is expanded by adding to it's revs, with the last
 /// rev being the most complete. In the future, revs may be replaced
 /// with ids in a database (or something)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Expr {
     // /// The id of the expression. This never changes and is based on the hash
     // /// of its first form.
@@ -58,7 +58,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExprData {
     // The first item in an expression, possibly only value.
     pub left: ExprItem,
@@ -69,7 +69,7 @@ pub struct ExprData {
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExprItem {
     // Can appear directly in Syntax
     Declare(Box<Declare>),
@@ -78,13 +78,14 @@ pub enum ExprItem {
     Infer,
     Type(Type),
     Arbitrary(Arbitrary),
+    Void,
 
-    // Compressions
+    // Reductions, does not appear in AST
     Name(Name),
     Computed(Computed),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Operation {
     pub operator: Operator,
     pub right: Expr,
@@ -92,17 +93,17 @@ pub struct Operation {
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operator {
     Access,
     Call,
     Expand1,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Expand1(pub ExprItem);
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Visibility {
     Pub,
 }
@@ -116,7 +117,7 @@ impl Visibility {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Ownership {
     Own,
     Mut,
@@ -136,29 +137,29 @@ impl Ownership {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Iden {
     pub a: String,
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Name {
     iden: Vec<Iden>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Computed webassembly
 pub struct Computed {
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Value {
     pub a: AValue,
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AValue {
     Integer(u64),
     String(String),
@@ -166,7 +167,7 @@ pub enum AValue {
     Bool(bool),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Declare {
     Fn(DeclareFn),
     Struct(DeclareStruct),
@@ -174,7 +175,7 @@ pub enum Declare {
     Var(DeclareVar),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeclareFn {
     pub visibility: HashSet<Visibility>,
     pub name: Type,
@@ -184,7 +185,7 @@ pub struct DeclareFn {
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeclareStruct {
     pub name: Type,
     pub visibility: HashSet<Visibility>,
@@ -192,7 +193,7 @@ pub struct DeclareStruct {
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeclareEnum {
     pub name: Type,
     pub visibility: HashSet<Visibility>,
@@ -200,7 +201,7 @@ pub struct DeclareEnum {
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeclareVar {
     pub let_: bool,
     pub visibility: HashSet<Visibility>,
@@ -212,34 +213,34 @@ pub struct DeclareVar {
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Closed {
     Block(Block),
     Data(Data),
     Type(Type),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Block {
     pub exprs: Vec<Expr>,
     pub end: bool,
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Data {
     pub fields: Vec<DeclareVar>,
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Type {
     pub iden: Iden,
     pub block: Option<TypeBlock>,
     pub loc: Loc,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeBlock {
     // Expressions which must be expanded
     pub expand: Vec<Expr>,
@@ -249,7 +250,7 @@ pub struct TypeBlock {
     // pub type_: Vec<Type>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Arbitrary {
     pub loc: Loc,
 }

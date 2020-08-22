@@ -54,3 +54,71 @@ pub enum S {
     List(Vec<S>),
     Comment(String),
 }
+
+pub struct Formatter<'a> {
+    w: &'a mut dyn std::io::Write,
+    indent: u64,
+    indent_value: &'static str,
+}
+
+impl<'a> Formatter<'a> {
+    fn new(w: &'a mut dyn std::io::Write) -> Formatter<'a> {
+        Formatter {
+            w,
+            indent: 0,
+            indent_value: "  ",
+        }
+    }
+
+    #[throws(std::io::Error)]
+    fn fmt(&mut self, s: &S) {
+        match s {
+            S::Atom(v) => self.w.write_all(v.as_bytes())?,
+            S::List(v) => {
+                self.start_paren()?;
+                let mut items = v.iter();
+                if let Some(s) = items.next() {
+                    self.fmt(s)?;
+                }
+                for s in items {
+                    self.start_line()?;
+                    self.fmt(s)?;
+                }
+                self.end_paren()?;
+            },
+            S::Comment(v) =>{
+                self.start_line()?;
+                for l in v.lines() {
+                    self.w.write_all(l.as_bytes())?;
+                    self.start_line()?;
+                }
+            },
+        }
+    }
+    #[throws(std::io::Error)]
+    fn start_paren(&mut self) {
+        self.w.write_all(b"(")?;
+        self.indent += 1;
+    }
+
+    #[throws(std::io::Error)]
+    fn end_paren(&mut self) {
+        self.w.write_all(b")")?;
+        self.indent -= 1;
+    }
+
+    #[throws(std::io::Error)]
+    fn new_line(&mut self) {
+        self.w.write_all(b"\n")?;
+        self.start_line()?;
+    }
+
+    #[throws(std::io::Error)]
+    fn start_line(&mut self) {
+        for _ in 0..self.indent {
+            self.w.write_all(self.indent_value.as_bytes())?;
+        }
+    }
+
+}
+
