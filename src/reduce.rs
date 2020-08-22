@@ -60,32 +60,30 @@ pub fn reduce_expr(expr: &mut Expr) {
             } else {
                 let right = &right.left;
                 match (&operation.operator, left, right) {
-                    ///////////////////
-                    // Name reductions
-                    (Access, ExprItem::Type(l), ExprItem::Type(r)) => {
-                        new_left = Some(ExprItem::Name(Name(vec![l.clone(), r.clone()])));
-                        Some(None)
-                    }
-                    (Access, ExprItem::Type(l), ExprItem::Name(r)) => {
-                        let mut n = Vec::with_capacity(r.0.len() + 1);
-                        n.push(l.clone());
-                        n.extend(r.0.iter().cloned());
+                    (Operator::Access, ExprItem::Type(_), ExprItem::Type(_))
+                    | (Operator::Access, ExprItem::Type(_), ExprItem::Name(_))
+                    | (Operator::Access, ExprItem::Name(_), ExprItem::Type(_))
+                    | (Operator::Access, ExprItem::Name(_), ExprItem::Name(_)) => {
+                        let mut cap = 0;
+                        cap += if let ExprItem::Name(l) = left { l.0.len() } else { 1 };
+                        cap += if let ExprItem::Name(r) = right { r.0.len() } else { 1 };
+                        let mut n = Vec::with_capacity(cap);
+
+                        let extend_name = |n: &mut Vec<_>, item: &ExprItem| {
+                            match item {
+                                ExprItem::Name(i) => n.extend(i.0.iter().cloned()),
+                                ExprItem::Type(t) => n.push(t.clone()),
+                                _ => unreachable!(),
+                            }
+                        };
+                        extend_name(&mut n, left);
+                        extend_name(&mut n, right);
                         new_left = Some(ExprItem::Name(Name(n)));
                         Some(None)
                     }
-                    (Access, ExprItem::Name(l), ExprItem::Type(r)) => {
-                        let mut n = Vec::with_capacity(l.0.len() + 1);
-                        n.extend(l.0.iter().cloned());
-                        n.push(r.clone());
-                        new_left = Some(ExprItem::Name(Name(n)));
-                        Some(None)
-                    }
-                    (Access, ExprItem::Name(l), ExprItem::Name(r)) => {
-                        let mut n = Vec::with_capacity(l.0.len() + r.0.len());
-                        n.extend(l.0.iter().cloned());
-                        n.extend(r.0.iter().cloned());
-                        new_left = Some(ExprItem::Name(Name(n)));
-                        Some(None)
+                    (Operator::Expand1, ExprItem::Type(t), ExprItem::Arbitrary(a)) => {
+                        panic!()
+
                     }
                     _ => None,
                 }
@@ -94,6 +92,7 @@ pub fn reduce_expr(expr: &mut Expr) {
             None
         };
 
+        // TODO: this needs to possibly return a new expression to append onto revs
         panic!();
     }
 }
