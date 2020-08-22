@@ -115,7 +115,7 @@ impl ExprItemParser {
             Rule::value => ExprItem::Value(parse_value(src, pair)?),
             Rule::closed => ExprItem::Closed(parse_closed(src, pair)?),
             Rule::INFER => ExprItem::Infer,
-            Rule::type_ => ExprItem::Type(parse_type(src, pair)?),
+            Rule::name => ExprItem::Path(Path::from(parse_type(src, pair)?)),
             Rule::arbitrary => {
                 if self.allow_arbitrary {
                     ExprItem::Arbitrary(parse_arbitrary(src, pair)?)
@@ -369,10 +369,10 @@ fn parse_declare_var(src: &Src, pair: Pair<Rule>) -> DeclareVar {
     let (t, ownership) = parse_ownership(&mut inner, t);
     let var = t.as_str().to_string();
     let mut t: Option<_> = inner.next();
-    let type_ = if t.is_some() && matches!(t.as_ref().unwrap().as_rule(), Rule::type_) {
-        let type_ = parse_type(src, t.take().unwrap())?;
+    let name = if t.is_some() && matches!(t.as_ref().unwrap().as_rule(), Rule::name) {
+        let name = parse_type(src, t.take().unwrap())?;
         t = inner.next();
-        Some(type_)
+        Some(name)
     } else {
         None
     };
@@ -391,7 +391,7 @@ fn parse_declare_var(src: &Src, pair: Pair<Rule>) -> DeclareVar {
         visibility,
         ownership,
         var,
-        type_,
+        name,
         assign_ownership,
         assign,
         loc,
@@ -404,8 +404,8 @@ fn parse_closed(src: &Src, pair: Pair<Rule>) -> Closed {
     let pair = pair.into_inner().next().unwrap();
     match pair.as_rule() {
         Rule::block => Closed::Block(parse_block(src, pair)?),
+        Rule::name_block => Closed::Name(parse_name_block(src, pair)?),
         Rule::data => Closed::Data(parse_data(src, pair)?),
-        Rule::type_ => Closed::Type(parse_type(src, pair)?),
         _ => unreachable!(pair),
     }
 }
@@ -441,21 +441,21 @@ fn parse_data(src: &Src, pair: Pair<Rule>) -> Data {
 }
 
 #[throws]
-fn parse_type(src: &Src, pair: Pair<Rule>) -> Type {
-    assert!(matches!(pair.as_rule(), Rule::type_));
+fn parse_type(src: &Src, pair: Pair<Rule>) -> Name {
+    assert!(matches!(pair.as_rule(), Rule::name));
     let loc = Loc::new(&src.path, &pair);
     let mut inner = pair.into_inner();
     let iden = parse_iden(src, expect!(inner.next()))?;
-    let block: Option<TypeBlock> = match inner.next() {
-        Some(p) => Some(parse_type_block(src, p)?),
+    let block: Option<NameBlock> = match inner.next() {
+        Some(p) => Some(parse_name_block(src, p)?),
         None => None,
     };
-    Type { iden, block, loc }
+    Name { iden, block, loc }
 }
 
 #[throws]
-fn parse_type_block(src: &Src, pair: Pair<Rule>) -> TypeBlock {
-    assert!(matches!(pair.as_rule(), Rule::type_block));
+fn parse_name_block(src: &Src, pair: Pair<Rule>) -> NameBlock {
+    assert!(matches!(pair.as_rule(), Rule::name_block));
     let loc = Loc::new(&src.path, &pair);
     let mut expand = Vec::new();
     for pair in pair.into_inner() {
@@ -467,7 +467,7 @@ fn parse_type_block(src: &Src, pair: Pair<Rule>) -> TypeBlock {
             _ => unreachable!("{:?}: {}", pair.as_rule(), pair),
         }
     }
-    TypeBlock { expand, loc }
+    NameBlock { expand, loc }
 }
 
 #[throws]

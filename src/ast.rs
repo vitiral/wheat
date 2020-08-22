@@ -26,7 +26,7 @@ pub struct Expr {
     // /// of its first form.
     // id: Hash128,
     pub revs: Vec<ExprData>,
-    pub deps: Vec<Name>,
+    pub deps: Vec<Path>,
 
     /// Whether the deps have been computed
     pub deps_ready: bool,
@@ -76,12 +76,11 @@ pub enum ExprItem {
     Value(Value),
     Closed(Closed),
     Infer,
-    Type(Type),
+    Path(Path),
     Arbitrary(Arbitrary),
     Void,
 
     // Reductions, does not appear in AST
-    Name(Name),
     Computed(Computed),
 }
 
@@ -144,7 +143,15 @@ pub struct Iden {
 }
 
 #[derive(Debug, Clone)]
-pub struct Name(pub Vec<Type>);
+pub struct Path(pub Vec<Name>);
+
+impl From<Name> for Path {
+    fn from(name: Name) -> Self {
+        let mut n = Vec::with_capacity(1);
+        n.push(name);
+        Self(n)
+    }
+}
 
 #[derive(Debug, Clone)]
 /// Computed webassembly
@@ -175,7 +182,7 @@ pub enum Declare {
 #[derive(Debug, Clone)]
 pub struct DeclareFn {
     pub visibility: HashSet<Visibility>,
-    pub name: Type,
+    pub name: Name,
     pub input: Data,
     pub output: Option<Data>,
     pub block: Block,
@@ -184,7 +191,7 @@ pub struct DeclareFn {
 
 #[derive(Debug, Clone)]
 pub struct DeclareStruct {
-    pub name: Type,
+    pub name: Name,
     pub visibility: HashSet<Visibility>,
     pub data: Data,
     pub loc: Loc,
@@ -192,7 +199,7 @@ pub struct DeclareStruct {
 
 #[derive(Debug, Clone)]
 pub struct DeclareEnum {
-    pub name: Type,
+    pub name: Name,
     pub visibility: HashSet<Visibility>,
     pub data: Data,
     pub loc: Loc,
@@ -204,7 +211,7 @@ pub struct DeclareVar {
     pub visibility: HashSet<Visibility>,
     pub ownership: HashSet<Ownership>,
     pub var: String,
-    pub type_: Option<Type>,
+    pub name: Option<Name>,
     pub assign_ownership: HashSet<Ownership>,
     pub assign: Option<Expr>,
     pub loc: Loc,
@@ -214,7 +221,7 @@ pub struct DeclareVar {
 pub enum Closed {
     Block(Block),
     Data(Data),
-    Type(Type),
+    Name(NameBlock),
 }
 
 #[derive(Debug, Clone)]
@@ -231,20 +238,20 @@ pub struct Data {
 }
 
 #[derive(Debug, Clone)]
-pub struct Type {
+pub struct Name {
     pub iden: Iden,
-    pub block: Option<TypeBlock>,
+    pub block: Option<NameBlock>,
     pub loc: Loc,
 }
 
 #[derive(Debug, Clone)]
-pub struct TypeBlock {
+pub struct NameBlock {
     // Expressions which must be expanded
     pub expand: Vec<Expr>,
     pub loc: Loc,
     // TODO: Expand into:
     // pub declare_var: Vec<DeclareVar>,
-    // pub type_: Vec<Type>,
+    // pub name: Vec<Name>,
 }
 
 #[derive(Debug, Clone)]

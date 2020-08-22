@@ -60,30 +60,15 @@ pub fn reduce_expr(expr: &mut Expr) {
             } else {
                 let right = &right.left;
                 match (&operation.operator, left, right) {
-                    (Operator::Access, ExprItem::Type(_), ExprItem::Type(_))
-                    | (Operator::Access, ExprItem::Type(_), ExprItem::Name(_))
-                    | (Operator::Access, ExprItem::Name(_), ExprItem::Type(_))
-                    | (Operator::Access, ExprItem::Name(_), ExprItem::Name(_)) => {
-                        let mut cap = 0;
-                        cap += if let ExprItem::Name(l) = left { l.0.len() } else { 1 };
-                        cap += if let ExprItem::Name(r) = right { r.0.len() } else { 1 };
-                        let mut n = Vec::with_capacity(cap);
-
-                        let extend_name = |n: &mut Vec<_>, item: &ExprItem| {
-                            match item {
-                                ExprItem::Name(i) => n.extend(i.0.iter().cloned()),
-                                ExprItem::Type(t) => n.push(t.clone()),
-                                _ => unreachable!(),
-                            }
+                    (Operator::Access, ExprItem::Path(left), ExprItem::Path(right)) => {
+                        let mut n = Vec::with_capacity(left.0.len() + right.0.len());
+                        let extend_path = |n: &mut Vec<_>, path: &Path| {
+                            n.extend(path.0.iter().cloned());
                         };
-                        extend_name(&mut n, left);
-                        extend_name(&mut n, right);
-                        new_left = Some(ExprItem::Name(Name(n)));
+                        extend_path(&mut n, left);
+                        extend_path(&mut n, right);
+                        new_left = Some(ExprItem::Path(Path(n)));
                         Some(None)
-                    }
-                    (Operator::Expand1, ExprItem::Type(t), ExprItem::Arbitrary(a)) => {
-                        panic!()
-
                     }
                     _ => None,
                 }
