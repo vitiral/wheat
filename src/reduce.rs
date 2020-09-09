@@ -9,13 +9,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
 
+use crate::sexpr;
+
+// TODO: I should be passing all items in owned values + returning the new items.
+// I can probably even get rid of revs, and even ExprData->Expr
+// #[throws]
+// pub fn reduce_expr(ext: &External, expr: mut Expr) -> Expr {
+// 
+// }
+
 #[throws]
-pub fn reduce_pkg(external: &External, mut files: HashMap<Path, File>) -> Pkg {
+pub fn reduce_pkg(ext: &External, mut files: HashMap<Path, File>) -> Pkg {
     let mut declare: HashMap<Path, Expr> = HashMap::new();
     for (path, mut file) in files.drain() {
         for mut expr in file.exprs.drain(0..) {
             reduce_expr_names(&mut expr);
-            reduce_top_expr(external, &mut expr);
+            reduce_top_expr(ext, &mut expr);
         }
     }
     // We need to:
@@ -25,7 +34,7 @@ pub fn reduce_pkg(external: &External, mut files: HashMap<Path, File>) -> Pkg {
 }
 
 #[throws]
-pub fn reduce_top_expr(external: &External, expr: &mut Expr) {
+pub fn reduce_top_expr(ext: &External, expr: &mut Expr) {
     let data = expr.rev_mut();
     let reason = "only declarations or expansions can be performed at the top level";
     let mut new_data: Option<ExprData> = None;
@@ -39,7 +48,8 @@ pub fn reduce_top_expr(external: &External, expr: &mut Expr) {
         (ExprItem::Path(path), Some(operation)) => {
             match operation.operator {
                 Operator::Expand1 => {
-                    new_data = Some(reduce_expand1(external, path, operation)?);
+                    panic!();
+                    // new_data = Some(reduce_expand1(ext,  operation)?);
                 },
                 _ => throw!(CError::InvalidExpr {
                     expr: expr.clone(),
@@ -56,20 +66,24 @@ pub fn reduce_top_expr(external: &External, expr: &mut Expr) {
 }
 
 #[throws]
-pub fn reduce_expand1(external: &External, path: &Path, operation: &mut Operation) -> ExprData {
-    let p = path.as_slice();
-    if p == PATH_WASM_PRIV.as_ref() {
-        panic!();
-    }
+pub fn reduce_expand1(ext: &External, item: &mut ExprData) -> ExprData {
+    // recursively reduce the right side
+    let operation = expect!(item.operation.as_mut());
+    assert!(matches!(operation.operator, Operator::Expand1));
+
+    // let p = path.as_slice();
+    // if p == PATH_WASM_PRIV.as_ref() {
+    //     sexpr::parse(
+    // }
     panic!();
 }
+
 
 pub fn reduce_expr_names(expr: &mut Expr) {
     let (new_left, new_operation) = {
         let data = expect!(expr.revs.last_mut());
 
         let mut new_left: Option<ExprItem> = match &mut data.left {
-            ExprItem::Declare(_) => None,
             ExprItem::Closed(c) => {
                 match c {
                     Closed::Block(b) => {
@@ -90,7 +104,7 @@ pub fn reduce_expr_names(expr: &mut Expr) {
                             None
                         }
                     }
-                    _ => panic!(),
+                    _ => None,
                 }
             }
             // Already reduced
@@ -152,3 +166,37 @@ pub fn reduce_expr_names(expr: &mut Expr) {
         });
     }
 }
+
+/// To be called after reducing the names
+#[throws]
+pub fn reduce_expr_old(ext: &External, expr: &mut Expr) {
+    {
+        let data = expect!(expr.revs.last_mut());
+
+        // let mut new_left: Option<ExprItem> = match &mut data.left {
+        //     // ExprItem::Declare(d) => reduce_declare(ext, d)?,
+        //     ExprItem::Declare(d) => panic!(),
+        //     ExprItem::Value(c) => None,
+        //     ExprItem::Closed(c) => panic!(),
+        //     ExprItem::Infer => None,
+        //     ExprItem::Path(p) => None,
+        //     ExprItem::Arbitrary(_) => None,
+        // };
+    }
+    panic!()
+
+
+}
+
+#[throws]
+pub fn reduce_declare_old(ext: &External, declare: &mut Declare) -> Option<Declare> {
+    match declare {
+        // Declare::DeclareFn(f) => {
+        //     // let new_input = reduce_data(ext, &f.input)?;
+        //     panic!();
+        // }
+        _ => panic!(),
+    }
+    panic!()
+}
+

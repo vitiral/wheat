@@ -192,7 +192,9 @@ impl fmt::Display for Path {
 
 #[derive(Debug, Clone)]
 /// Computed webassembly
-pub struct Computed {}
+pub struct Computed {
+
+}
 
 #[derive(Debug, Clone)]
 pub struct Value {
