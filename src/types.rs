@@ -1,4 +1,6 @@
+use crate::ast::{Expr, Path};
 use crate::parser::Rule;
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
@@ -7,6 +9,12 @@ use thiserror::Error;
 pub enum CError {
     #[error("syntax error: {0}")]
     Pest(#[from] pest::error::Error<Rule>),
+
+    #[error("Invalid expr {expr:?}. {reason}")]
+    InvalidExpr { expr: Expr, reason: String },
+
+    #[error("path collision error {path}: {first} {second}")]
+    Collision { path: Path, first: Loc, second: Loc },
 }
 
 impl CError {
@@ -49,5 +57,11 @@ impl Loc {
 
     pub fn end(&self) -> u64 {
         self.span.1
+    }
+}
+
+impl fmt::Display for Loc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}:({},{})", self.path, self.span.0, self.span.1)
     }
 }

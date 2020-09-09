@@ -3,32 +3,69 @@
 use crate::ast::*;
 use crate::types::{CError, Loc};
 use anyhow::{Context, Error};
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thiserror::Error;
 
-pub fn reduce_file(mut file: File) -> File {
+#[throws]
+pub fn reduce_pkg(external: &External, mut files: HashMap<Path, File>) -> Pkg {
+    let mut declare: HashMap<Path, Expr> = HashMap::new();
+    for (path, mut file) in files.drain() {
+        for mut expr in file.exprs.drain(0..) {
+            reduce_expr_names(&mut expr);
+            reduce_top_expr(external, &mut expr);
+        }
+    }
+    // We need to:
+    // - reduce macro expansions
+    // - collect declarations of functions, structs, enums and globals for name resolution
+    panic!();
+}
+
+#[throws]
+pub fn reduce_top_expr(external: &External, expr: &mut Expr) {
+    let data = expr.rev();
+    match (&data.left, &data.operation) {
+        (ExprItem::Declare(_), Some(_)) => throw!(CError::InvalidExpr {
+            expr: expr.clone(),
+            reason: "operations cannot be performed on declarations.".to_owned()
+        }),
+        (ExprItem::Declare(_), None) => {} // valid expression
+        (ExprItem::Path(_), Some(_)) => panic!(),
+        _ => throw!(CError::InvalidExpr {
+            expr: expr.clone(),
+            reason: "only declarations or expansions can be performed at the top level".to_owned()
+        }),
+    }
+    panic!();
+}
+
+#[throws]
+pub fn reduce_expand1(data: ExprData) -> ExprData {
     panic!()
 }
 
-pub fn reduce_expr(expr: &mut Expr) {
-    {
-        let expr = expect!(expr.revs.last_mut());
+pub fn reduce_expr_names(expr: &mut Expr) {
+    let (new_left, new_operation) = {
+        let data = expect!(expr.revs.last_mut());
 
-        let mut new_left: Option<ExprItem> = match &mut expr.left {
+        let mut new_left: Option<ExprItem> = match &mut data.left {
             ExprItem::Declare(_) => None,
             ExprItem::Closed(c) => {
                 match c {
                     Closed::Block(b) => {
                         // () => Void
-                        // ( expr ) => expr
+                        // ( data ) => data
                         // ( a; b) => (a; b)
+                        // ( a;) => (a;)
                         if b.exprs.is_empty() {
                             Some(ExprItem::Void)
                         } else if b.exprs.len() == 1 && !b.end {
-                            reduce_expr(&mut b.exprs[0]);
-                            if expect!(b.exprs[0].revs.last()).operation.is_none() {
-                                Some(expect!(b.exprs[0].revs.last()).left.clone())
+                            reduce_expr_names(&mut b.exprs[0]);
+                            if b.exprs[0].rev().operation.is_none() {
+                                Some(b.exprs[0].rev().left.clone())
                             } else {
                                 None
                             }
@@ -45,14 +82,14 @@ pub fn reduce_expr(expr: &mut Expr) {
 
         let left = match new_left.as_ref() {
             Some(l) => l,
-            None => &expr.left,
+            None => &data.left,
         };
 
-        let new_operation: Option<Option<Operation>> = if let Some(operation) = &mut expr.operation
+        let new_operation: Option<Option<Operation>> = if let Some(operation) = &mut data.operation
         {
-            reduce_expr(&mut operation.right);
+            reduce_expr_names(&mut operation.right);
 
-            let right = expect!(operation.right.revs.last());
+            let right = operation.right.rev();
 
             if right.operation.is_some() {
                 // Cannot reduce
@@ -77,7 +114,24 @@ pub fn reduce_expr(expr: &mut Expr) {
             None
         };
 
-        // TODO: this needs to possibly return a new expression to append onto revs
-        panic!();
+        (new_left, new_operation)
+    };
+
+    if new_left.is_some() || new_operation.is_some() {
+        let left = match new_left {
+            Some(new_left) => new_left,
+            None => expr.rev().left.clone(),
+        };
+
+        let operation = match new_operation {
+            Some(o) => o,
+            None => expr.rev().operation.clone(),
+        };
+
+        expr.revs.push(ExprData {
+            left,
+            operation,
+            loc: expr.rev().loc.clone(),
+        });
     }
 }

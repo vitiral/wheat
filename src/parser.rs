@@ -115,7 +115,7 @@ impl ExprItemParser {
             Rule::value => ExprItem::Value(parse_value(src, pair)?),
             Rule::closed => ExprItem::Closed(parse_closed(src, pair)?),
             Rule::INFER => ExprItem::Infer,
-            Rule::name => ExprItem::Path(Path::from(parse_type(src, pair)?)),
+            Rule::name => ExprItem::Path(Path::from(parse_name(src, pair)?)),
             Rule::arbitrary => {
                 if self.allow_arbitrary {
                     ExprItem::Arbitrary(parse_arbitrary(src, pair)?)
@@ -278,7 +278,7 @@ fn parse_declare_fn(src: &Src, pair: Pair<Rule>) -> DeclareFn {
         t = inner.next().unwrap();
     }
 
-    let name = parse_type(src, t)?;
+    let name = parse_name(src, t)?;
     let input = parse_data(src, inner.next().unwrap())?;
 
     t = inner.next().unwrap();
@@ -313,7 +313,7 @@ fn parse_declare_struct(src: &Src, pair: Pair<Rule>) -> DeclareStruct {
         t = inner.next().unwrap();
     }
 
-    let name = parse_type(src, t)?;
+    let name = parse_name(src, t)?;
     let data = parse_data(src, inner.next().unwrap())?;
     DeclareStruct {
         name,
@@ -336,7 +336,7 @@ fn parse_declare_enum(src: &Src, pair: Pair<Rule>) -> DeclareEnum {
         t = inner.next().unwrap();
     }
 
-    let name = parse_type(src, t)?;
+    let name = parse_name(src, t)?;
     let data = parse_data(src, inner.next().unwrap())?;
     DeclareEnum {
         name,
@@ -367,15 +367,9 @@ fn parse_declare_var(src: &Src, pair: Pair<Rule>) -> DeclareVar {
     }
 
     let (t, ownership) = parse_ownership(&mut inner, t);
-    let var = t.as_str().to_string();
-    let mut t: Option<_> = inner.next();
-    let name = if t.is_some() && matches!(t.as_ref().unwrap().as_rule(), Rule::name) {
-        let name = parse_type(src, t.take().unwrap())?;
-        t = inner.next();
-        Some(name)
-    } else {
-        None
-    };
+
+    let name = parse_name(src, t)?;
+    let t = inner.next();
 
     let (assign_ownership, assign) = if let Some(tother) = t {
         let (tother, assign_ownership) = parse_ownership(&mut inner, tother);
@@ -390,7 +384,6 @@ fn parse_declare_var(src: &Src, pair: Pair<Rule>) -> DeclareVar {
         let_,
         visibility,
         ownership,
-        var,
         name,
         assign_ownership,
         assign,
@@ -441,15 +434,15 @@ fn parse_data(src: &Src, pair: Pair<Rule>) -> Data {
 }
 
 #[throws]
-fn parse_type(src: &Src, pair: Pair<Rule>) -> Name {
+fn parse_name(src: &Src, pair: Pair<Rule>) -> Name {
     assert!(matches!(pair.as_rule(), Rule::name));
     let loc = Loc::new(&src.path, &pair);
     let mut inner = pair.into_inner();
     let iden = parse_iden(src, expect!(inner.next()))?;
-    let block: Option<NameBlock> = match inner.next() {
-        Some(p) => Some(parse_name_block(src, p)?),
-        None => None,
-    };
+    let mut block = Vec::new();
+    while let Some(p) = inner.next() {
+        block.push(parse_name(src, p)?);
+    }
     Name { iden, block, loc }
 }
 

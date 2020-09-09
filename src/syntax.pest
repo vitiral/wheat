@@ -121,17 +121,17 @@ declare_struct = { VISIBILITY? ~ "struct" ~ name ~ data }
 declare_enum = { VISIBILITY? ~ "enum" ~ name ~ data }
 
 declare_var = { 
-  LET ~ iden ~ (":" ~ expr)? ~ ("=" ~ expr)?
-  | iden ~ ( ":" ~ expr)? ~ "=" ~ expr
+  LET ~ name ~ (":" ~ expr)? ~ ("=" ~ expr)?
+  | name ~ ( ":" ~ expr)? ~ "=" ~ expr
 
   // struct declarations
-  | VISIBILITY? ~ iden ~ ":" ~ expr ~ ("=" ~ expr)?
+  | VISIBILITY? ~ name ~ ":" ~ expr ~ ("=" ~ expr)?
 }
 
 ////////////////
 // Type
 
-name = { iden ~ name_block? }
+name = { iden ~ ("[" ~ (name ~ END)* ~ (name ~ END?)? ~ "]")? }
 
 ////////////////
 // Closed Expressions

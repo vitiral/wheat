@@ -1,15 +1,32 @@
 use crate::types::Loc;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt;
 
+use std::hash;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+pub struct External {
+    pub pkg: HashMap<Name, Pkg>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Pkg {
+    pub declare: HashMap<Path, Expr>,
+    pub alias: HashMap<Iden, Path>,
+    pub injected: HashMap<Path, Expr>,
+}
 
 #[derive(Debug, Clone)]
 pub struct File {
     pub path: Arc<PathBuf>,
     pub exprs: Vec<Expr>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Attr(String, String);
 
 /// The `Expr` is the primary unit that the compiler uses for computing
 /// the result of the program. Each expression has an `id` and
@@ -22,23 +39,7 @@ pub struct File {
 /// with ids in a database (or something)
 #[derive(Debug, Clone)]
 pub struct Expr {
-    // /// The id of the expression. This never changes and is based on the hash
-    // /// of its first form.
-    // id: Hash128,
     pub revs: Vec<ExprData>,
-    pub deps: Vec<Path>,
-
-    /// Whether the deps have been computed
-    pub deps_ready: bool,
-
-    /// Whether the expression is ready to be completed.
-    pub ready: bool,
-
-    /// Whether all items within the expression have been expanded.
-    pub complete: bool,
-
-    /// Whether the expression is entirely computed.
-    pub computed: bool,
 
     /// Assertions tied to this expression
     pub assert_exprs: HashMap<usize, String>,
@@ -48,13 +49,16 @@ impl Expr {
     pub fn new(data: ExprData) -> Expr {
         Expr {
             revs: vec![data],
-            deps: vec![],
-            deps_ready: false,
-            ready: false,
-            complete: false,
-            computed: false,
             assert_exprs: HashMap::new(),
         }
+    }
+
+    pub fn rev(&self) -> &ExprData {
+        expect!(self.revs.last())
+    }
+
+    pub fn rev_mut(&mut self) -> &mut ExprData {
+        expect!(self.revs.last_mut())
     }
 }
 
@@ -142,7 +146,21 @@ pub struct Iden {
     pub loc: Loc,
 }
 
-#[derive(Debug, Clone)]
+impl PartialEq for Iden {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a
+    }
+}
+
+impl Eq for Iden {}
+
+impl hash::Hash for Iden {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.a.hash(state);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path(pub Vec<Name>);
 
 impl From<Name> for Path {
@@ -150,6 +168,19 @@ impl From<Name> for Path {
         let mut n = Vec::with_capacity(1);
         n.push(name);
         Self(n)
+    }
+}
+
+impl fmt::Display for Path {
+    #[throws(fmt::Error)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) {
+        let mut iter = self.0.iter();
+        if let Some(c) = iter.next() {
+            write!(f, "{}", c)?;
+        }
+        for c in iter {
+            write!(f, ".{}", c)?;
+        }
     }
 }
 
@@ -187,6 +218,8 @@ pub struct DeclareFn {
     pub output: Option<Data>,
     pub block: Block,
     pub loc: Loc,
+    // Computed
+    // pub attr: HashSet<Attr>,
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +228,8 @@ pub struct DeclareStruct {
     pub visibility: HashSet<Visibility>,
     pub data: Data,
     pub loc: Loc,
+    // Computed
+    // pub attr: HashSet<Attr>,
 }
 
 #[derive(Debug, Clone)]
@@ -203,6 +238,8 @@ pub struct DeclareEnum {
     pub visibility: HashSet<Visibility>,
     pub data: Data,
     pub loc: Loc,
+    // Computed
+    // pub attr: HashSet<Attr>,
 }
 
 #[derive(Debug, Clone)]
@@ -210,8 +247,7 @@ pub struct DeclareVar {
     pub let_: bool,
     pub visibility: HashSet<Visibility>,
     pub ownership: HashSet<Ownership>,
-    pub var: String,
-    pub name: Option<Name>,
+    pub name: Name,
     pub assign_ownership: HashSet<Ownership>,
     pub assign: Option<Expr>,
     pub loc: Loc,
@@ -240,8 +276,39 @@ pub struct Data {
 #[derive(Debug, Clone)]
 pub struct Name {
     pub iden: Iden,
-    pub block: Option<NameBlock>,
+    pub block: Vec<Name>,
     pub loc: Loc,
+}
+
+impl PartialEq for Name {
+    fn eq(&self, other: &Self) -> bool {
+        self.iden == other.iden && self.block == other.block
+    }
+}
+
+impl Eq for Name {}
+
+impl hash::Hash for Name {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.iden.hash(state);
+        self.block.hash(state);
+    }
+}
+
+impl fmt::Display for Name {
+    #[throws(fmt::Error)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) {
+        write!(f, "{}", self.iden.a)?;
+        if !self.block.is_empty() {
+            write!(f, "[")?;
+            let mut iter = self.block.iter();
+            write!(f, "{}", expect!(iter.next()))?;
+            for n in iter {
+                write!(f, "; {}", n)?;
+            }
+            write!(f, "]")?;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
