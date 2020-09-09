@@ -4,6 +4,11 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref PATH_WASM_PRIV: [String; 1] = [String::from("wasm_priv")];
+}
 
 #[derive(Debug, Error)]
 pub enum CError {
@@ -65,3 +70,4 @@ impl fmt::Display for Loc {
         write!(f, "{:?}:({},{})", self.path, self.span.0, self.span.1)
     }
 }
+

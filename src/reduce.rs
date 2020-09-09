@@ -1,7 +1,7 @@
 //! Reduce/collapse ast.
 
 use crate::ast::*;
-use crate::types::{CError, Loc};
+use crate::types::*;
 use anyhow::{Context, Error};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -26,25 +26,42 @@ pub fn reduce_pkg(external: &External, mut files: HashMap<Path, File>) -> Pkg {
 
 #[throws]
 pub fn reduce_top_expr(external: &External, expr: &mut Expr) {
-    let data = expr.rev();
-    match (&data.left, &data.operation) {
+    let data = expr.rev_mut();
+    let reason = "only declarations or expansions can be performed at the top level";
+    let mut new_data: Option<ExprData> = None;
+
+    match (&data.left, &mut data.operation) {
         (ExprItem::Declare(_), Some(_)) => throw!(CError::InvalidExpr {
             expr: expr.clone(),
             reason: "operations cannot be performed on declarations.".to_owned()
         }),
         (ExprItem::Declare(_), None) => {} // valid expression
-        (ExprItem::Path(_), Some(_)) => panic!(),
+        (ExprItem::Path(path), Some(operation)) => {
+            match operation.operator {
+                Operator::Expand1 => {
+                    new_data = Some(reduce_expand1(external, path, operation)?);
+                },
+                _ => throw!(CError::InvalidExpr {
+                    expr: expr.clone(),
+                    reason: reason.to_owned(),
+                }),
+            }
+        }
         _ => throw!(CError::InvalidExpr {
             expr: expr.clone(),
-            reason: "only declarations or expansions can be performed at the top level".to_owned()
+            reason: reason.to_owned(),
         }),
     }
     panic!();
 }
 
 #[throws]
-pub fn reduce_expand1(data: ExprData) -> ExprData {
-    panic!()
+pub fn reduce_expand1(external: &External, path: &Path, operation: &mut Operation) -> ExprData {
+    let p = path.as_slice();
+    if p == PATH_WASM_PRIV.as_ref() {
+        panic!();
+    }
+    panic!();
 }
 
 pub fn reduce_expr_names(expr: &mut Expr) {

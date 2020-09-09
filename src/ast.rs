@@ -161,12 +161,18 @@ impl hash::Hash for Iden {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Path(pub Vec<Name>);
+pub struct Path(pub Vec<String>);
+
+impl Path {
+    pub fn as_slice(&self) -> &[String] {
+        self.0.as_slice()
+    }
+}
 
 impl From<Name> for Path {
     fn from(name: Name) -> Self {
         let mut n = Vec::with_capacity(1);
-        n.push(name);
+        n.push(name.to_string());
         Self(n)
     }
 }
@@ -278,6 +284,38 @@ pub struct Name {
     pub iden: Iden,
     pub block: Vec<Name>,
     pub loc: Loc,
+}
+
+impl Name {
+    pub fn to_string(&self) -> String {
+        let mut s = String::with_capacity(self.str_len());
+        self.push_to_string(&mut s);
+        s
+    }
+
+    fn str_len(&self) -> usize {
+        let mut len: usize = self.iden.a.len();
+        if !self.block.is_empty() {
+            let sum: usize = self.block.iter().map(|n: &Name|->usize {n.str_len()}).sum();
+            len = len + 2 // for []
+                + sum
+                + (self.block.len() - 1) * 2; // for "; " between
+        }
+        return len;
+    }
+
+    fn push_to_string(&self, s: &mut String) {
+        s.push_str(&self.iden.a);
+        if !self.block.is_empty() {
+            s.push_str("[");
+            let mut block = self.block.iter();
+            expect!(block.next()).push_to_string(s);
+            for n in block {
+                s.push_str("; ");
+                n.push_to_string(s);
+            }
+        }
+    }
 }
 
 impl PartialEq for Name {

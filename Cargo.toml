@@ -13,6 +13,7 @@ pest = "2.0.0"
 pest_derive = "2.0.0"
 expect_macro = "*"
 siphasher = "0.3"
+lazy_static = "1.4"
 
 # Error handling:
 # https://tarquin-the-brave.github.io/blog/posts/collecting-all-the-errors/
