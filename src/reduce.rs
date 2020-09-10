@@ -13,10 +13,113 @@ use crate::sexpr;
 
 // TODO: I should be passing all items in owned values + returning the new items.
 // I can probably even get rid of revs, and even ExprData->Expr
-// #[throws]
-// pub fn reduce_expr(ext: &External, expr: mut Expr) -> Expr {
-// 
-// }
+
+#[throws]
+pub fn reduce_expr(ext: &External, mut expr: Expr) -> Expr {
+    // let (new_left, new_operation) = {
+    {
+        let mut data = expect!(expr.revs.pop());
+
+        panic!();
+
+        // let left = match new_left.as_ref() {
+        //     Some(l) => l,
+        //     None => &data.left,
+        // };
+
+        // let new_operation: Option<Option<Operation>> = if let Some(operation) = &mut data.operation
+        // {
+        //     reduce_expr_names(&mut operation.right);
+
+        //     let right = operation.right.rev();
+
+        //     if right.operation.is_some() {
+        //         // Cannot reduce
+        //         None
+        //     } else {
+        //         let right = &right.left;
+        //         match (&operation.operator, left, right) {
+        //             (Operator::Access, ExprItem::Path(left), ExprItem::Path(right)) => {
+        //                 let mut n = Vec::with_capacity(left.0.len() + right.0.len());
+        //                 let extend_path = |n: &mut Vec<_>, path: &Path| {
+        //                     n.extend(path.0.iter().cloned());
+        //                 };
+        //                 extend_path(&mut n, left);
+        //                 extend_path(&mut n, right);
+        //                 new_left = Some(ExprItem::Path(Path(n)));
+        //                 Some(None)
+        //             }
+        //             _ => None,
+        //         }
+        //     }
+        // } else {
+        //     None
+        // };
+
+        // (new_left, new_operation)
+    };
+
+    panic!();
+    // if new_left.is_some() || new_operation.is_some() {
+    //     let left = match new_left {
+    //         Some(new_left) => new_left,
+    //         None => expr.rev().left.clone(),
+    //     };
+
+    //     let operation = match new_operation {
+    //         Some(o) => o,
+    //         None => expr.rev().operation.clone(),
+    //     };
+
+    //     expr.revs.push(ExprData {
+    //         left,
+    //         operation,
+    //         loc: expr.rev().loc.clone(),
+    //     });
+    // }
+
+}
+
+#[throws]
+pub fn reduce_expr_item(ext: &External, mut item: ExprItem) -> ExprItem {
+     match item {
+        ExprItem::Closed(mut c) => {
+            match c {
+                Closed::Block(mut b) => {
+                    if b.exprs.is_empty() {
+                        // () => Void
+                        ExprItem::Void
+                    } else if b.exprs.len() == 1 && !b.end {
+                        let mut inner: Expr = expect!(b.exprs.pop());
+                        inner = reduce_expr(ext, inner)?;
+
+                        if inner.rev().operation.is_none() {
+                            // ( data ) => data
+                            expect!(inner.revs.pop()).left
+                        } else {
+                            // ( a;) => (a;)
+                            b.exprs.push(inner);
+                            ExprItem::Closed(Closed::Block(b))
+                        }
+                    } else {
+                        // ( a; b) => (a'; b')
+                        let mut exprs = Vec::new();
+                        for e in b.exprs.drain(..) {
+                            exprs.push(reduce_expr(ext, e)?);
+                        }
+                        b.exprs = exprs;
+                        ExprItem::Closed(Closed::Block(b))
+                    }
+                }
+                _ => panic!(),
+            }
+        }
+        // Already reduced
+        _ => panic!(),
+    };
+    panic!()
+
+}
 
 #[throws]
 pub fn reduce_pkg(ext: &External, mut files: HashMap<Path, File>) -> Pkg {
