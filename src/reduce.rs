@@ -103,7 +103,7 @@ pub fn reduce_expr_item(ext: &External, mut item: ExprItem) -> ExprItem {
                         }
                     } else {
                         // ( a; b) => (a'; b')
-                        let mut exprs = Vec::new();
+                        let mut exprs = Vec::with_capacity(b.exprs.len());
                         for e in b.exprs.drain(..) {
                             exprs.push(reduce_expr(ext, e)?);
                         }
@@ -111,7 +111,18 @@ pub fn reduce_expr_item(ext: &External, mut item: ExprItem) -> ExprItem {
                         ExprItem::Closed(Closed::Block(b))
                     }
                 }
-                _ => panic!(),
+                Closed::Data(mut d) => {
+                    let mut fields = Vec::with_capacity(d.fields.len());
+                    for decl in d.fields.drain(..) {
+                        fields.push(reduce_declare_var(ext, decl)?);
+                    }
+                    d.fields = fields;
+                    ExprItem::Closed(Closed::Data(d))
+                }
+                Closed::Name(n) => {
+                    // Need to convert array types correctly.
+                    panic!();
+                }
             }
         }
         // Already reduced
@@ -119,6 +130,11 @@ pub fn reduce_expr_item(ext: &External, mut item: ExprItem) -> ExprItem {
     };
     panic!()
 
+}
+
+#[throws]
+pub fn reduce_declare_var(ext: &External, mut decl_var: DeclareVar) -> DeclareVar {
+    panic!()
 }
 
 #[throws]

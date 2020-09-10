@@ -215,7 +215,7 @@ fn parse_ownership<'a>(
     mut t: Pair<'a, Rule>,
 ) -> (Pair<'a, Rule>, HashSet<Ownership>) {
     let mut ownership = HashSet::new();
-    while matches!(t.as_rule(), Rule::OWNERSHIP) {
+    while matches!(t.as_rule(), Rule::OWN) {
         ownership.insert(Ownership::new(t.as_str()));
         t = expect!(inner.next());
     }
@@ -435,12 +435,15 @@ fn parse_data(src: &Src, pair: Pair<Rule>) -> Data {
 
 #[throws]
 fn parse_name(src: &Src, pair: Pair<Rule>) -> Name {
-    assert!(matches!(pair.as_rule(), Rule::name));
+    assert!(matches!(pair.as_rule(), Rule::name), "{:?}", pair);
     let loc = Loc::new(&src.path, &pair);
     let mut inner = pair.into_inner();
     let iden = parse_iden(src, expect!(inner.next()))?;
     let mut block = Vec::new();
     while let Some(p) = inner.next() {
+        if (matches!(p.as_rule(), Rule::END)) {
+            continue;
+        }
         block.push(parse_name(src, p)?);
     }
     Name { iden, block, loc }

@@ -158,9 +158,9 @@ The following control how the value can be used and when it is freed:
   will still be dropped at end of scope and may still have interrior mutability.
 - `ref` by itself is a lifetime tracker. It is sometimes used by structs to
   define lifetime relationships and is not a real value (has no size).
-- `[n=5; <own> <type>]` specifies an array of 5 values
-- `[n=?; <own> <type>]` specifies an array of an unknown number of values.
-- `[n=5; <own> [n=2; <own> <type>]]` specifies a 5x2 array of values.
+- `[5; <own> <type>]` specifies an array of 5 values
+- `[?; <own> <type>]` specifies an array of an unknown number of values.
+- `[5; <own> [2; <own> <type>]]` specifies a 5x2 array of values.
 
 For a struct/enum to be used in a `const <type>` context, it must have:
 - All of its types and their subtypes have `const` in them 

@@ -18,7 +18,7 @@ expr = {
   )?
 }
 
-expr_item = { value | closed | declare | INFER | name | arbitrary }
+expr_item = { value | closed | declare | INFER | name | type_ | arbitrary }
 
 ////////////////
 // Operation
@@ -40,7 +40,8 @@ expand2 = { EXPAND2 ~ expr_item ~ expr }
 
 LET = { "let" }
 VISIBILITY = { "pub" }
-OWNERSHIP = { "const" | "own" | "ref" | "excl" }
+OWN = { "const" | "own" }
+REF =  { "ref" | "excl" }
 END = { ";" }
 INFER = { "_" }
 
@@ -131,15 +132,20 @@ declare_var = {
 ////////////////
 // Type
 
-name = { iden ~ ("[" ~ (name ~ END)* ~ (name ~ END?)? ~ "]")? }
+name = { iden ~ ("[" ~ (REF? ~ name ~ END)* ~ (REF? ~ name ~ END?)? ~ "]")? }
+type_ = { (OWN | REF) ~ name }
 
 ////////////////
 // Closed Expressions
 
-closed = { block | name_block | data }
+closed = { block | array | name_block | data }
 
 block = { 
     "(" ~ (expr ~ END)* ~ (expr ~ END?)? ~ ")"
+}
+
+array = {
+    "[" ~ integer ~ END ~ type_ ~ END? ~ "]"
 }
 
 // Note: has syntactic restrictions:

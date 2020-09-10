@@ -362,6 +362,13 @@ pub struct NameBlock {
 }
 
 #[derive(Debug, Clone)]
+pub struct Array {
+    pub size: usize,
+    pub name: Name,
+    pub loc: Loc,
+}
+
+#[derive(Debug, Clone)]
 pub struct Arbitrary {
     pub loc: Loc,
 }
