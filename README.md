@@ -1,13 +1,33 @@
 > **wheat does not in any way work. It is an experimental language still in the design phase**
 
-The basic design:
+The basic (future) design:
 - Compiles directly and plainly to wasm
 - Expression based language. Expressions can "return a value"
 - Macro and const-function first language: many constructs (i.e. generics) don't exist
   but are solved with macros and insertable types.
-- Supports all basic integer and floating point types along with structs, enums and pointers.
-- Memorry is RAII with tracking of ownership.
+- Supports all basic number and string types along with structs, enums and pointers.
+- Memorry is RAII with external tracking of ownership.
 - Inspired by rust and a [withoutboats blog post](https://boats.gitlab.io/blog/post/notes-on-a-smaller-rust/)
+
+The basic roadmap is as follows:
+- [ ] Implement the core language in rust. This will support only the basic types,
+  packages and a few built-in macros. It will not allow custom macros.
+- [ ] Implement the core wheat language in wheat, becoming a bootstrapping
+  compiler.
+- [ ] Implement a wasm interpreter in wheat.
+- [ ] Implement the custom macro system, which requires running wheat/wasm on
+  the fly.
+- [ ] Implement wasm to native-assembly compiler in wheat, preferablly JiT
+  to speed up the macro system.
+- [ ] Use wheat to build a simple functional language for more complicated
+  software.
+- [ ] Implement the lifetime checker in this new language, add lifetimes
+  to the core library and create a stdlib with lifetimes.
+- [ ] Clean up existing software
+- [ ] Implement native-assmbly extensions to the wasm compiler in wheat.
+- [ ] Use wheat to build the [Civboot](civboot.org) operating system
+  and core software.
+- [ ] Implement simple wasm optimizers in the functional language.
 
 # Overview
 
@@ -25,7 +45,7 @@ Statements that don't end in `;` can return a value.
 
 For example:
 ```
-let own v:i32 = (
+let own v: i32 = (
   let a = 2;
   let b = 40;
   a + b
@@ -36,7 +56,7 @@ si.printf!("v={}", v); // macro call, prints "v=42"
 ```
 
 ```
-alias Id = u32;
+alias Id: u32;
 let own id: Id = 42;
 ```
 
@@ -46,44 +66,36 @@ to the left and right of the first delimiter on the left. Please ignore the
 `own` keyword, it will be discussed in ownership.
 
 ```
-fn splitl{own s [String]; delimiter [char]}
+fn splitl{own s: String; delimiter: char}
   -> { left: String; right: String; }
 (
-  for!!({let c = ch; let i = index}; s.charsIndex{}) (
+  for!!({let c = ch; let i = index} = s.charsIndex${}) (
     if c == delimter (
-      let right = s.removeTail(s.len() - i - 1);
-      s.pop(); // pop delimiter
-      return new ret {left = s; right = right};
+      let right = s.removeTail$ (math! #(s.len$_ - i - 1)#);
+      s.pop$_; // pop delimiter
+      return ret$ {left = s; right = right};
     )
   )
-  return new ret {left = s; right = String.default()};
+  return ret$ {left=s; right=String.default()};
 )
 ```
 
 If you wanted to be able to address both the input and output structs by index,
 you would write the following
 
-```
-byindex!
-fn split{own s: String; delimiter: char}
-  -> byindex!{left [String]; right [String]}
-  ( ... )
 
-// Can now call like:
-split${"foo,bar"; ','}
-```
-
-`byindex!` and `for!!` are macros. Macros with one `!` consume the next
+`math!` and `for!!` are macros. Macros with one `!` consume the next
 expression. Macros with two `!` (like `for!!`) consume the next two
 expressions.
 
 Macros can consume any expression meaning they can consume a container (a
 struct value, etc), a statement or block of statements `(...)`, a function, a
-struct definition, a type statement (`[u32]`), etc.
+struct definition, a type statement (`[u32]`), an arbitrary block (`#( ...
+)#`), etc.
 
 Macros can be chained by simply putting them next to eachother without passing
-them an expression. For instance, to implement the Debug and Eq interfaces for
-a struct you might do:
+them a different expression. For instance, to implement the Debug and Eq
+interfaces for a struct you might do:
 
 ```
 Debug! Eq!
@@ -103,6 +115,7 @@ doesn't matter, but that might not always be the case.
 - i8, i16, i32, i64
 - usize, isize, ptr
 - f32, f64
+- [32; type]
 - Void
 
 # Operators
@@ -129,10 +142,10 @@ The following control how the value can be used and when it is freed:
 - `own <type>` declares an _owned exclusive value_. It can be
   mutated and will be destroyed at end of scope. It can be cloned 
   or given to other functions as any of the ownership types.
-- `excl <type>` declares an _exlusive reference_. It can be given to other
+- `exc <type>` declares an _exlusive reference_. It can be given to other
   functions as an `excl` or `shared` reference. The lifetime (`lt!`) tracker
   will ensure that it is not used while other functions have access to it.
-- `shared <type>` declares a _shared reference_. It can be given to other
+- `ref <type>` declares a _shared reference_. It can be given to other
   functions or stored inside collections. It is guaranteed that there is not
   a simultanious exclusive reference by the `lt!` tracker.
 - `const <type>` declares an _immutable value_ created at const/static time.
@@ -156,14 +169,13 @@ For a struct/enum to be used in a `const <type>` context, it must have:
 
 ## Taint analysis and lifetimes
 
-Here is `splitl` using references instead of owned values. In order to use
-references, the lifetimes must be marked correctly in this case because
-the compiler has no way to know the programer intended the output to be
-tied to the input.
+Eventually, it would be desireable to be able to track lifetimes using
+an external linter which has access to the AST attributes. Below is
+an example of how this might be done.
 
 ```
-lt!!(s=res) // "s" must outlive all values in "res" (result)
-fn splitl{s: String; delimiter: char}
+lt!!{s=res;} // "s" must outlive all values in "res" (result)
+fn splitl{s: ref String; delimiter: char}
   -> {left: ref str; right: ref str}
 (
   for!!({let c = v; let i = index}; s.charsIndex{}) (
@@ -175,54 +187,14 @@ fn splitl{s: String; delimiter: char}
 )
 ```
 
-Note that `s` is an immutable reference. How might this work?
-```
-let mut own in = stdin();
-{let left=line1; let right=line2} = splitl{s=in; delimter='\n'};
-// cannot use `in` mutably since it has a reference to left/right
-if left == "not good" {
-  abort(1);
-}
-// left/right are no longer used, so we own `in` again and can use mutably.
-in.replace("very good", "super good");
-
-// At end of function compiler inserts `in.destroy{}`
-```
-
-To summarize:
-- The ownership specifications (i.e. `own`, `own mut`, etc) influence
-  where `v.destory{}` is inserted -- at the end of scope for the variable
-  in reverse order. No lifetime analysis is required for this.
-- The ownership specification also outright forbids certain bad things,
-  like putting a non-exclusive owned value into a sync or mutating an immutable
-  value.
-- Taint analysis goes through every function call local to a value and ensures:
-  - taints a reference if it is stored in a container type (lowest level is
-    typically a slice): their lifetimes must be explicitly bound and that
-    reference can no longer be used mutably (via `lt`).
-  - taints a reference if any field/index is referenced, it cannot be used
-    mutably. If the sub-reference was mutable, only other sub-references (i.e.
-    fields) can be used.
-
-The `lt!!` macro is really just calling a compiler intrinsic macro which
-assigns _attributes_ to types. This is information known at compile time
-which can be used by internal and external tooling to help check programs.
-Values assigned must implement the `toJson` interface.
-
-```
-attr!!(taint=Vec.of!{
-   {symbol=tar.inp.s, taint=Taint.Outlive.from(tar.res.all!_)};
-})
-```
-
 # Generics, or rather the lack thereof
 The language does not provide generics. Instead types can be specified using
 `[]` as part of their name and macros can inject new types (including
 functions, implementations, etc) into packages.
 
-For an example long type:
+For example, a long type:
 ```
-let v: std.collect.HashMap[std.collect.String;u32];
+let v: std.collect.HashMap[std.collect.String; u32];
 ```
 
 However, note that normally people do not specify types in this way... and in fact,
@@ -231,17 +203,17 @@ the ones in the standard library. Instead, the type must be _generated_ by a mac
 from within that package, which also  _injects_ it.
 
 ```
-type String: std.collect.String;
-type HashMap: std.collect.HashMap;
+alias String: std.collect.String;
+alias HashMap: std.collect.HashMap;
 
 let m: HashMap![String; u32] = HashMap![String; u32].of!{"foo": 42; "bar": 1};
 ```
 
-> To simplify, you may also do something like `type HM[S; 32] = HashMap![String; u32]`
+> To simplify, you may also do something like `alias MyHm = HashMap![String; u32]`
 
-The variant of `HashMap` (which implements the interface
-`std.collect.Map[std.collect.String;u32]`) is then _generated_ on the fly.
-Declaring a macro like `std.collect.HashMap!` is covered later.
+The variant of `HashMap` is then _generated_ on the fly and _injected_ into the
+namespace `std.collect`. Declaring a macro like `std.collect.HashMap!` is
+covered later.
 
 "Generic functions" are also generated via a macro:
 
@@ -259,20 +231,19 @@ What functions or types have to be generated? The answer is _any_ function
 which does not take in or return a concrete struct, enum or primitive type.
 
 # Reserved keywords:
-- types: struct, enum, type
-- ownership: let, const, mut, own, ref
 - functions: fn, inp, res, self
+- types: struct, enum, alias
+- ownership: let, const, own, exc, ref
 - types: Self
-- macros: lt!!, gen!!, tar (target)
+- macros: `wasm_priv!!, for!!, lt!!, gen!!, tar (target)`
 
 # Inline wasm
-The `wasm!` macro enables inline wasm. It can use any variables that are
-accessible to the program at that point by using their cannonical names
-and is not allowed to use addresses that are not accessible local/global
-variables.
+The `wasm_priv!` macro enables inline wasm. It can use any variables that are
+accessible to the program at that point by using their cannonical names and is
+not allowed to use addresses that are not accessible local/global variables.
 
 The compiler itself also extensively uses `wasm_priv!` which can execute
-ANY arbitrary wasm, but is not available to other programs.
+ANY arbitrary wasm, but is only available to priveledged pkgs.
 
 The canonical names are generated the following way. Note that the names will
 be obfuscated to comply with wat naming standards.
