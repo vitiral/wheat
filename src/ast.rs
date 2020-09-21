@@ -122,18 +122,19 @@ impl Visibility {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Ownership {
-    Own,
-    Mut,
-    Sync,
     Const,
+    Own,
+    Ref,
+    Exc,
+    None,
 }
 
 impl Ownership {
     pub fn new(s: &str) -> Self {
         match s {
             "own" => Ownership::Own,
-            "mut" => Ownership::Mut,
-            "snc" => Ownership::Sync,
+            "ref" => Ownership::Ref,
+            "exc" => Ownership::Exc,
             "const" => Ownership::Const,
             _ => unreachable!(s),
         }
@@ -281,10 +282,28 @@ pub struct Data {
     pub loc: Loc,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum NameRef {
+    None,
+    Ref,
+    Exc,
+}
+
+impl NameRef {
+    pub fn new(s: &str) -> Self {
+        match s {
+            "ref" => NameRef::Ref,
+            "exc" => NameRef::Exc,
+            _ => unreachable!(s),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Name {
     pub iden: Iden,
     pub block: Vec<Name>,
+    pub r: NameRef,
     pub loc: Loc,
 }
 

@@ -446,7 +446,7 @@ fn parse_name(src: &Src, pair: Pair<Rule>) -> Name {
         }
         block.push(parse_name(src, p)?);
     }
-    Name { iden, block, loc }
+    Name { iden, block, Ownership::None, loc }
 }
 
 #[throws]
