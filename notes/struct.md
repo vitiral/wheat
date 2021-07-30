@@ -9,7 +9,7 @@ struct Value3 {};            // struct containing no values
 Structs define a function of the same name, which is how they are initialized.
 ```
 Value1 $ 42;
-Value2 $ {b=42.0};
+Value2 $ {b = 42.0};
 Value3 $ _;
 ```
 

@@ -71,7 +71,7 @@ fn splitl{own s: String; delimiter: char}
 (
   for!!({let c = ch; let i = index} = s.charsIndex${}) (
     if c == delimter (
-      let right = s.removeTail$ (math! #(s.len$_ - i - 1)#);
+      let right = s.removeTail$(s.len$_ - i - 1);
       s.pop$_; // pop delimiter
       return ret$ {left = s; right = right};
     )
@@ -83,9 +83,8 @@ fn splitl{own s: String; delimiter: char}
 If you wanted to be able to address both the input and output structs by index,
 you would write the following
 
-
 `math!` and `for!!` are macros. Macros with one `!` consume the next
-expression. Macros with two `!` (like `for!!`) consume the next two
+expression. Macros with two `!!` (like `for!!`) consume the next two
 expressions.
 
 Macros can consume any expression meaning they can consume a container (a

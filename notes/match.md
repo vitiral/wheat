@@ -1,11 +1,10 @@
 
 Matches are inspired by rust but use the `@` symbol more extensively.
 
-
 ```
 match someValue {
-  V1 $ let x @ _ ( /* use x */ );
-  V2 $ {0=I3 $ {let x @ 1=F4{..} | F5; /* ignore other items */ ..}} ( /* use x */ );
+  SomeValue1 $ let x @ _ ( /* use x */ );
+  SomeValue2 $ {0=I3 $ {let x @ 1=F4{..} | F5; /* ignore other items */ ..}} ( /* use x */ );
   let x @ _ ( /* use x */ );
 }
 ```
